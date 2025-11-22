@@ -6,7 +6,12 @@
   "type": "module",
   "scripts": {
     "start": "node src/server.js",
-    "dev": "node --watch src/server.js"
+    "dev": "node --watch src/server.js",
+    "test": "NODE_OPTIONS='--experimental-vm-modules' jest --coverage",
+    "test:watch": "NODE_OPTIONS='--experimental-vm-modules' jest --watch",
+    "test:unit": "NODE_OPTIONS='--experimental-vm-modules' jest --testPathPattern=unit",
+    "test:integration": "NODE_OPTIONS='--experimental-vm-modules' jest --testPathPattern=integration",
+    "test:e2e": "NODE_OPTIONS='--experimental-vm-modules' jest --testPathPattern=e2e"
   },
   "keywords": [
     "seo",
@@ -25,6 +30,10 @@
     "isbot": "^5.1.0",
     "node-cache": "^5.1.2",
     "puppeteer": "^23.11.1"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "supertest": "^7.0.0"
   },
   "engines": {
     "node": ">=18.0.0"
