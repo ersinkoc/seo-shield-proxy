@@ -1,6 +1,11 @@
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import type { StatsData } from '../types';
 
-export default function StatsOverview({ stats }) {
+interface StatsOverviewProps {
+  stats: StatsData | null;
+}
+
+export default function StatsOverview({ stats }: StatsOverviewProps) {
   if (!stats) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -9,44 +14,42 @@ export default function StatsOverview({ stats }) {
     );
   }
 
-  const { metrics, cache, memory } = stats;
-
   const cards = [
     {
       title: 'Total Requests',
-      value: metrics.totalRequests.toLocaleString(),
+      value: (stats.totalRequests || 0).toLocaleString(),
       icon: '📥',
-      subtitle: `${((metrics.botRequests / metrics.totalRequests) * 100 || 0).toFixed(1)}% bots`,
+      subtitle: `${((stats.botRequests || 0) / (stats.totalRequests || 1) * 100).toFixed(1)}% bots`,
     },
     {
       title: 'Bot Requests',
-      value: metrics.botRequests.toLocaleString(),
+      value: (stats.botRequests || 0).toLocaleString(),
       icon: '🤖',
-      subtitle: `${metrics.humanRequests?.toLocaleString() || 0} humans`,
+      subtitle: `${(stats.humanRequests || 0).toLocaleString()} humans`,
     },
     {
-      title: 'SSR Rendered',
-      value: metrics.ssrRendered.toLocaleString(),
-      icon: '🎨',
-      subtitle: 'Pages rendered',
+      title: 'Active Connections',
+      value: (stats.activeConnections || 0).toLocaleString(),
+      icon: '🔗',
+      subtitle: 'WebSocket connections',
     },
     {
       title: 'Cache Hit Rate',
-      value: `${cache.hitRate}%`,
+      value: `${(stats.cacheHitRate || 0).toFixed(1)}%`,
       icon: '✅',
-      subtitle: `${cache.hits} hits / ${cache.misses} misses`,
+      subtitle: 'Average cache performance',
     },
     {
-      title: 'Cached Pages',
-      value: cache.keys.toLocaleString(),
-      icon: '💾',
-      subtitle: 'In memory',
+      title: 'Avg Render Time',
+      value: `${(stats.avgRenderTime || 0).toFixed(0)}ms`,
+      icon: '⚡',
+      subtitle: 'SSR processing time',
     },
     {
-      title: 'Memory Used',
-      value: `${memory.heapUsed} MB`,
-      icon: '🧠',
-      subtitle: `${memory.heapTotal} MB total`,
+      title: 'Browser Queue',
+      value: (stats.browserMetrics?.queued || 0).toLocaleString(),
+      icon: '🎯',
+      subtitle: `${stats.browserMetrics?.processing || 0} processing`,
     },
   ];
 

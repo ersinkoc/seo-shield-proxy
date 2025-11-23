@@ -1,11 +1,15 @@
-import { useState } from 'react';
+import { useState, FormEvent } from 'react';
 
-export default function LoginPage({ onLogin }) {
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+interface LoginPageProps {
+  onLogin: () => void;
+}
 
-  const handleSubmit = async (e) => {
+export default function LoginPage({ onLogin }: LoginPageProps) {
+  const [password, setPassword] = useState<string>('');
+  const [error, setError] = useState<string>('');
+  const [loading, setLoading] = useState<boolean>(false);
+
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault();
     setError('');
     setLoading(true);

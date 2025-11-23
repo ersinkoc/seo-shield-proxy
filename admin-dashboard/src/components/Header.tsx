@@ -1,7 +1,12 @@
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 
-export default function Header({ isConnected, onLogout }) {
+interface HeaderProps {
+  isConnected: boolean;
+  onLogout?: () => void;
+}
+
+export default function Header({ isConnected, onLogout }: HeaderProps) {
   return (
     <header className="border-b border-slate-200 bg-white shadow-sm">
       <div className="container mx-auto px-6 py-4">

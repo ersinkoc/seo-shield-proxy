@@ -1,10 +1,20 @@
+import React from 'react';
+
+interface ButtonProps {
+  className?: string;
+  variant?: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link';
+  size?: 'default' | 'sm' | 'lg' | 'icon';
+  children: React.ReactNode;
+  [key: string]: any;
+}
+
 export function Button({
   className = '',
   variant = 'default',
   size = 'default',
   children,
   ...props
-}) {
+}: ButtonProps) {
   const variants = {
     default: 'bg-slate-900 text-slate-50 hover:bg-slate-900/90',
     destructive: 'bg-red-500 text-slate-50 hover:bg-red-500/90',

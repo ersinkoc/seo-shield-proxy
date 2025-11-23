@@ -97,7 +97,7 @@ function App() {
   );
 }
 
-function TabButton({ active, onClick, icon, label }: TabButtonProps): JSX.Element {
+function TabButton({ active, onClick, icon, label }: TabButtonProps) {
   return (
     <button
       onClick={onClick}

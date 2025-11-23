@@ -3,26 +3,38 @@ import { createServer, Server as HttpServer } from 'http';
 import { createProxyMiddleware, RequestHandler } from 'http-proxy-middleware';
 import { isbot } from 'isbot';
 import config from './config.js';
-import cache from './cache.js';
+import cache, { getCache } from './cache.js';
 import browserManager from './browser.js';
 import CacheRules from './cache-rules.js';
 import adminRoutes from './admin/admin-routes.js';
 import metricsCollector from './admin/metrics-collector.js';
 import configManager from './admin/config-manager.js';
 import { initializeWebSocket } from './admin/websocket.js';
+import {
+  generalRateLimiter,
+  ssrRateLimiter,
+  adminRateLimiter,
+  apiRateLimiter
+} from './middleware/rate-limiter.js';
 
 const app = express();
 const httpServer: HttpServer = createServer(app);
 
+// Apply general rate limiting
+app.use(generalRateLimiter);
+
+// Trust proxy for proper IP detection
+app.set('trust proxy', 1);
+
 // Initialize cache rules
 const cacheRules = new CacheRules(config);
 
-// Mount admin panel with error handling
+// Mount admin panel with rate limiting
 try {
   const runtimeConfig = configManager.getConfig();
   const adminPath = runtimeConfig?.adminPath || '/admin';
   console.log(`🔧 Admin panel mounted at: ${adminPath}`);
-  app.use(adminPath, adminRoutes);
+  app.use(adminPath, adminRateLimiter, adminRoutes);
 } catch (error) {
   console.error('⚠️  Failed to mount admin panel:', (error as Error).message);
 }
@@ -60,6 +72,24 @@ const proxyMiddleware: RequestHandler = createProxyMiddleware({
       res.status(502).send('Bad Gateway: Unable to reach target application');
     }
   },
+});
+
+/**
+ * SSR-specific rate limiting middleware
+ */
+app.use((req: Request, res: Response, next: NextFunction): void => {
+  // Apply stricter rate limiting for potential SSR requests
+  const userAgent = req.get('User-Agent') || '';
+  const isLikelyBot = isbot(userAgent);
+  const isRenderRequest = req.query['_render'] !== undefined;
+
+  // Apply SSR rate limiting for bots or render requests
+  if (isLikelyBot || isRenderRequest) {
+    ssrRateLimiter(req, res, next);
+    return;
+  }
+
+  next();
 });
 
 /**
@@ -381,7 +411,7 @@ app.use(async (req: Request, res: Response, next: NextFunction) => {
 /**
  * Health check endpoint
  */
-app.get('/health', (_req: Request, res: Response) => {
+app.get('/health', generalRateLimiter, (_req: Request, res: Response) => {
   try {
     const stats = cache.getStats();
     const memoryUsage = process.memoryUsage();
@@ -424,7 +454,7 @@ app.get('/health', (_req: Request, res: Response) => {
 /**
  * Cache management endpoint
  */
-app.post('/cache/clear', (_req: Request, res: Response) => {
+app.post('/cache/clear', apiRateLimiter, (_req: Request, res: Response) => {
   try {
     const statsBefore = cache.getStats();
     cache.flush();
@@ -453,7 +483,14 @@ app.post('/cache/clear', (_req: Request, res: Response) => {
  * Start server (skip in test environment)
  */
 if (process.env['NODE_ENV'] !== 'test') {
-  httpServer.listen(config.PORT, () => {
+  // Ensure cache is initialized before starting server
+  (async () => {
+    try {
+      console.log('🔄 Waiting for cache initialization...');
+      await getCache();
+      console.log('✅ Cache ready, starting server...');
+
+      httpServer.listen(config.PORT, () => {
     console.log('');
     console.log('═══════════════════════════════════════════════════════════');
     console.log('🛡️  SEO Shield Proxy - Production Ready');
@@ -476,7 +513,15 @@ if (process.env['NODE_ENV'] !== 'test') {
     console.log('');
 
     initializeWebSocket(httpServer);
-  });
+      });
+    } catch (error) {
+      console.error('❌ Cache initialization failed:', error);
+      console.log('🔄 Starting server with memory cache fallback...');
+      httpServer.listen(config.PORT, () => {
+        console.log('⚠️ Server started with memory cache only');
+      });
+    }
+  })();
 }
 
 /**
