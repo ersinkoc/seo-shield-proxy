@@ -6,13 +6,9 @@ import config from './config.js';
 import cache from './cache.js';
 import browserManager from './browser.js';
 import CacheRules from './cache-rules.js';
-// @ts-ignore - Will be converted to TypeScript
 import adminRoutes from './admin/admin-routes.js';
-// @ts-ignore - Will be converted to TypeScript
 import metricsCollector from './admin/metrics-collector.js';
-// @ts-ignore - Will be converted to TypeScript
 import configManager from './admin/config-manager.js';
-// @ts-ignore - Will be converted to TypeScript
 import { initializeWebSocket } from './admin/websocket.js';
 
 const app = express();
