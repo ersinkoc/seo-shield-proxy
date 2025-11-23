@@ -29,6 +29,7 @@
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "http-proxy-middleware": "^3.0.0",
+    "ioredis": "^5.8.2",
     "isbot": "^5.1.0",
     "node-cache": "^5.1.2",
     "puppeteer": "^23.11.1",
