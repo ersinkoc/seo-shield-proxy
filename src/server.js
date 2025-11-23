@@ -5,11 +5,26 @@ import config from './config.js';
 import cache from './cache.js';
 import browserManager from './browser.js';
 import CacheRules from './cache-rules.js';
+import adminRoutes from './admin/admin-routes.js';
+import metricsCollector from './admin/metrics-collector.js';
+import configManager from './admin/config-manager.js';
 
 const app = express();
 
 // Initialize cache rules
 const cacheRules = new CacheRules(config);
+
+// Mount admin panel (will be available at /admin after config loads)
+// Config manager loads async, so we use a middleware wrapper
+app.use('/admin', (req, res, next) => {
+  // Check if admin path has been customized in runtime config
+  const config = configManager.getConfig();
+  if (config && config.adminPath && config.adminPath !== '/admin') {
+    // Redirect to custom admin path
+    return res.redirect(config.adminPath + req.url);
+  }
+  adminRoutes(req, res, next);
+});
 
 /**
  * Static asset extensions that should always be proxied
@@ -82,6 +97,16 @@ app.use(async (req, res, next) => {
   // 1. Check if it's a static asset - always proxy
   if (isStaticAsset(requestPath)) {
     console.log(`📦 Static asset detected: ${requestPath} - Proxying directly`);
+
+    // Record metrics
+    metricsCollector.recordRequest({
+      path: requestPath,
+      userAgent,
+      isBot: false,
+      action: 'static',
+      cacheStatus: null,
+    });
+
     return proxyMiddleware(req, res, next);
   }
 
@@ -91,6 +116,16 @@ app.use(async (req, res, next) => {
   if (!isBotRequest) {
     // HUMAN USER - Proxy directly to the SPA
     console.log(`👤 Human user detected - Proxying to ${config.TARGET_URL}`);
+
+    // Record metrics
+    metricsCollector.recordRequest({
+      path: requestPath,
+      userAgent,
+      isBot: false,
+      action: 'proxy',
+      cacheStatus: null,
+    });
+
     return proxyMiddleware(req, res, next);
   }
 
@@ -104,6 +139,17 @@ app.use(async (req, res, next) => {
   // If URL pattern says don't render (e.g., NO_CACHE pattern), proxy directly
   if (!urlDecision.shouldRender) {
     console.log(`⏩ Skipping SSR based on rules - Proxying to ${config.TARGET_URL}`);
+
+    // Record metrics
+    metricsCollector.recordRequest({
+      path: requestPath,
+      userAgent,
+      isBot: true,
+      action: 'bypass',
+      cacheStatus: null,
+      rule: urlDecision.reason,
+    });
+
     return proxyMiddleware(req, res, next);
   }
 
@@ -118,6 +164,17 @@ app.use(async (req, res, next) => {
 
     if (cachedHtml) {
       console.log(`🚀 Serving cached HTML for: ${requestPath}`);
+
+      // Record metrics
+      metricsCollector.recordRequest({
+        path: requestPath,
+        userAgent,
+        isBot: true,
+        action: 'ssr',
+        cacheStatus: 'HIT',
+        rule: urlDecision.reason,
+      });
+
       res.set('Content-Type', 'text/html; charset=utf-8');
       res.set('X-Rendered-By', 'SEO-Shield-Proxy');
       res.set('X-Cache-Status', 'HIT');
@@ -141,6 +198,17 @@ app.use(async (req, res, next) => {
       console.log(`⚠️  HTML NOT cached: ${finalDecision.reason}`);
     }
 
+    // Record metrics
+    metricsCollector.recordRequest({
+      path: requestPath,
+      userAgent,
+      isBot: true,
+      action: 'ssr',
+      cacheStatus: 'MISS',
+      rule: finalDecision.reason,
+      cached: finalDecision.shouldCache,
+    });
+
     // Send response
     res.set('Content-Type', 'text/html; charset=utf-8');
     res.set('X-Rendered-By', 'SEO-Shield-Proxy');
@@ -152,11 +220,32 @@ app.use(async (req, res, next) => {
     // If rendering fails, fallback to proxying
     console.error(`❌ SSR failed for ${requestPath}, falling back to proxy:`, error.message);
 
+    // Record metrics
+    metricsCollector.recordRequest({
+      path: requestPath,
+      userAgent,
+      isBot: true,
+      action: 'proxy',
+      cacheStatus: null,
+      error: error.message,
+    });
+
     // Try to proxy the request as fallback
     try {
       return proxyMiddleware(req, res, next);
     } catch (proxyError) {
       console.error('❌ Fallback proxy also failed:', proxyError.message);
+
+      // Record fatal error
+      metricsCollector.recordRequest({
+        path: requestPath,
+        userAgent,
+        isBot: true,
+        action: 'error',
+        cacheStatus: null,
+        error: `${error.message} + ${proxyError.message}`,
+      });
+
       res.status(500).send('Internal Server Error: Unable to render or proxy the page');
     }
   }
