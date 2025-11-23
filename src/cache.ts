@@ -13,6 +13,15 @@ export interface CacheStats {
 }
 
 /**
+ * Cache entry with TTL information
+ */
+export interface CacheEntry {
+  value: string;
+  ttl: number;
+  isStale: boolean;
+}
+
+/**
  * In-memory cache for rendered HTML
  */
 class Cache {
@@ -23,19 +32,19 @@ class Cache {
       stdTTL: config.CACHE_TTL,
       checkperiod: Math.floor(config.CACHE_TTL * 0.2),
       useClones: false,
-      deleteOnExpire: true,
+      deleteOnExpire: false, // Keep stale entries for SWR strategy
       maxKeys: 1000,
     });
 
     this.cache.on('expired', (key: string) => {
-      console.log(`🗑️  Cache expired: ${key}`);
+      console.log(`⏰ Cache expired (keeping for SWR): ${key}`);
     });
 
     this.cache.on('del', (key: string) => {
       console.log(`🗑️  Cache deleted: ${key}`);
     });
 
-    console.log(`💾 Cache initialized with TTL: ${config.CACHE_TTL}s, max keys: 1000`);
+    console.log(`💾 Cache initialized with TTL: ${config.CACHE_TTL}s, max keys: 1000, SWR enabled`);
   }
 
   get(key: string): string | undefined {
@@ -46,6 +55,34 @@ class Cache {
       console.log(`❌ Cache MISS: ${key}`);
     }
     return value;
+  }
+
+  /**
+   * Get cache entry with TTL information (for SWR strategy)
+   */
+  getWithTTL(key: string): CacheEntry | undefined {
+    const value = this.cache.get<string>(key);
+    if (!value) {
+      console.log(`❌ Cache MISS: ${key}`);
+      return undefined;
+    }
+
+    const ttl = this.cache.getTtl(key);
+    const now = Date.now();
+    const remainingTTL = ttl ? Math.max(0, ttl - now) / 1000 : 0;
+    const isStale = remainingTTL <= 0;
+
+    if (isStale) {
+      console.log(`⏰ Cache STALE: ${key} (expired ${Math.abs(remainingTTL).toFixed(0)}s ago)`);
+    } else {
+      console.log(`✅ Cache HIT: ${key} (TTL: ${remainingTTL.toFixed(0)}s)`);
+    }
+
+    return {
+      value,
+      ttl: remainingTTL,
+      isStale,
+    };
   }
 
   set(key: string, value: string): boolean {

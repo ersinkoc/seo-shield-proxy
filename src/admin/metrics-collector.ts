@@ -8,7 +8,7 @@ export interface RequestData {
   userAgent: string;
   isBot: boolean;
   action: 'ssr' | 'proxy' | 'static' | 'bypass' | 'error';
-  cacheStatus: 'HIT' | 'MISS' | null;
+  cacheStatus: 'HIT' | 'MISS' | 'STALE' | null;
   rule?: string;
   cached?: boolean;
   error?: string;

@@ -129,14 +129,55 @@ app.use(async (req: Request, res: Response, next: NextFunction) => {
 
   try {
     const cacheKey = req.url;
-    let cachedHtml: string | undefined = undefined;
+    let cacheEntry;
 
+    // Check cache with TTL information (for SWR strategy)
     if (urlDecision.shouldCache) {
-      cachedHtml = cache.get(cacheKey);
+      cacheEntry = cache.getWithTTL(cacheKey);
     }
 
-    if (cachedHtml) {
-      console.log(`🚀 Serving cached HTML for: ${requestPath}`);
+    // SWR Strategy: Serve stale content while revalidating in background
+    if (cacheEntry) {
+      if (cacheEntry.isStale) {
+        // Stale-While-Revalidate: Serve stale data immediately
+        console.log(`🔄 SWR: Serving stale content for: ${requestPath}`);
+        metricsCollector.recordRequest({
+          path: requestPath,
+          userAgent,
+          isBot: true,
+          action: 'ssr',
+          cacheStatus: 'STALE',
+          rule: urlDecision.reason,
+        });
+
+        // Background revalidation (non-blocking)
+        (async () => {
+          try {
+            console.log(`🔄 Background revalidation started for: ${requestPath}`);
+            const renderResult = await browserManager.render(fullUrl);
+            const { html } = renderResult;
+
+            const finalDecision = cacheRules.getCacheDecision(req.url, html);
+            if (finalDecision.shouldCache) {
+              cache.set(cacheKey, html);
+              console.log(`✅ Background revalidation completed for: ${requestPath}`);
+            }
+          } catch (error) {
+            console.error(`⚠️  Background revalidation failed for ${requestPath}:`, (error as Error).message);
+          }
+        })();
+
+        // Return stale content immediately
+        res.set('Content-Type', 'text/html; charset=utf-8');
+        res.set('X-Rendered-By', 'SEO-Shield-Proxy');
+        res.set('X-Cache-Status', 'STALE');
+        res.set('X-Cache-Rule', urlDecision.reason);
+        res.set('X-SWR', 'true');
+        return res.send(cacheEntry.value);
+      }
+
+      // Fresh cache hit
+      console.log(`🚀 Serving fresh cached HTML for: ${requestPath}`);
       metricsCollector.recordRequest({
         path: requestPath,
         userAgent,
@@ -149,7 +190,8 @@ app.use(async (req: Request, res: Response, next: NextFunction) => {
       res.set('X-Rendered-By', 'SEO-Shield-Proxy');
       res.set('X-Cache-Status', 'HIT');
       res.set('X-Cache-Rule', urlDecision.reason);
-      return res.send(cachedHtml);
+      res.set('X-Cache-TTL', Math.floor(cacheEntry.ttl).toString());
+      return res.send(cacheEntry.value);
     }
 
     // Render with Puppeteer
