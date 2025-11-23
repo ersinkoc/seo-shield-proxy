@@ -1,0 +1,68 @@
+{
+  "server": {
+    "starting": "SEO Shield Proxy - Production Ready",
+    "adminPanel": "Admin panel mounted at: {{url}}",
+    "adminPanelFailed": "Failed to mount admin panel",
+    "staticAsset": "Static asset detected: {{path}}",
+    "humanDetected": "Human user detected: {{url}}",
+    "botDetected": "Bot detected: {{name}}",
+    "renderPreview": "Render preview requested: {{url}}",
+    "renderingWithPuppeteer": "Rendering with Puppeteer: {{url}}",
+    "htmlCached": "HTML cached for {{ttl}}s: {{url}}",
+    "htmlNotCached": "HTML NOT cached: {{url}}",
+    "cacheClearedViaApi": "Cache cleared via API",
+    "healthCheckError": "Health check error",
+    "cacheClearError": "Cache clear error",
+    "gracefulShutdown": "Graceful shutdown initiated...",
+    "serverClosing": "Server closing...",
+    "serverClosed": "Server closed",
+    "closeError": "Server close error",
+    "exitingProcess": "Exiting process...",
+    "listening": "Server listening on port {{port}}",
+    "botDetectionActive": "Bot detection: ✅ Active",
+    "ssrActive": "SSR rendering: ✅ Active",
+    "cacheActive": "Cache: ✅ Active ({{type}})",
+    "adminActive": "Admin: ✅ {{url}}"
+  },
+  "admin": {
+    "configUpdated": "Configuration updated",
+    "cachePatternAdded": "Cache pattern added: {{pattern}}",
+    "cachePatternRemoved": "Cache pattern removed: {{pattern}}",
+    "botAllowed": "Bot allowed: {{name}}",
+    "botBlocked": "Bot blocked: {{name}}",
+    "botRemoved": "Bot removed: {{name}}",
+    "configReset": "Configuration reset to defaults",
+    "metricsReset": "Metrics reset",
+    "authRequired": "Authentication required",
+    "invalidCredentials": "Invalid credentials",
+    "patternRequired": "Pattern is required",
+    "botNameRequired": "Bot name and action are required",
+    "loginSuccess": "Login successful",
+    "loginFailed": "Login failed"
+  },
+  "cache": {
+    "cleared": "Cache cleared",
+    "hit": "Cache hit: {{url}}",
+    "miss": "Cache miss: {{url}}",
+    "invalidated": "Cache invalidated: {{url}}",
+    "redisConnected": "Connected to Redis",
+    "redisError": "Redis error",
+    "redisDisconnected": "Disconnected from Redis"
+  },
+  "config": {
+    "validationError": "Configuration validation error",
+    "invalidPort": "Invalid port number",
+    "invalidCacheTtl": "Invalid cache TTL",
+    "invalidMaxConcurrency": "Invalid max concurrency",
+    "missingTargetUrl": "TARGET_URL is missing or invalid"
+  },
+  "browser": {
+    "launching": "Launching browser pool...",
+    "launched": "Browser pool launched",
+    "launchError": "Browser launch error",
+    "closing": "Closing browser pool...",
+    "closed": "Browser pool closed",
+    "renderError": "Render error: {{url}}",
+    "timeout": "Render timeout: {{url}}"
+  }
+}

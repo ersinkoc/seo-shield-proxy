@@ -10,6 +10,7 @@ import adminRoutes from './admin/admin-routes.js';
 import metricsCollector from './admin/metrics-collector.js';
 import configManager from './admin/config-manager.js';
 import { initializeWebSocket } from './admin/websocket.js';
+import { t } from './i18n.js';
 
 const app = express();
 const httpServer: HttpServer = createServer(app);
@@ -21,10 +22,10 @@ const cacheRules = new CacheRules(config);
 try {
   const runtimeConfig = configManager.getConfig();
   const adminPath = runtimeConfig?.adminPath || '/admin';
-  console.log(`🔧 Admin panel mounted at: ${adminPath}`);
+  console.log(`🔧 ${t('server.adminPanel', { url: adminPath })}`);
   app.use(adminPath, adminRoutes);
 } catch (error) {
-  console.error('⚠️  Failed to mount admin panel:', (error as Error).message);
+  console.error(`⚠️  ${t('server.adminPanelFailed')}:`, (error as Error).message);
 }
 
 /**
@@ -83,7 +84,7 @@ app.use(async (req: Request, res: Response, next: NextFunction) => {
 
   // 1. Static assets - proxy directly
   if (isStaticAsset(requestPath)) {
-    console.log(`📦 Static asset detected: ${requestPath} - Proxying directly`);
+    console.log(`📦 ${t('server.staticAsset', { path: requestPath })}`);
     metricsCollector.recordRequest({
       path: requestPath,
       userAgent,
@@ -102,7 +103,7 @@ app.use(async (req: Request, res: Response, next: NextFunction) => {
   // 3. Human users (without preview) - proxy directly
   const isBotRequest = isbot(userAgent);
   if (!isBotRequest && !isRenderPreview) {
-    console.log(`👤 Human user detected - Proxying to ${config.TARGET_URL}`);
+    console.log(`👤 ${t('server.humanDetected', { url: config.TARGET_URL })}`);
     metricsCollector.recordRequest({
       path: requestPath,
       userAgent,
@@ -115,9 +116,9 @@ app.use(async (req: Request, res: Response, next: NextFunction) => {
 
   // 4. Bot detected or render preview requested
   if (isRenderPreview) {
-    console.log(`🔍 Render preview requested (debug: ${isDebugMode})`);
+    console.log(`🔍 ${t('server.renderPreview', { url: requestPath })}`);
   } else {
-    console.log(`🤖 Bot detected: ${userAgent.substring(0, 80)}`);
+    console.log(`🤖 ${t('server.botDetected', { name: userAgent.substring(0, 80) })}`);
   }
 
   const urlDecision = cacheRules.shouldCacheUrl(req.url);
@@ -274,7 +275,7 @@ app.use(async (req: Request, res: Response, next: NextFunction) => {
     }
 
     // Render with Puppeteer
-    console.log(`🎨 Rendering with Puppeteer: ${fullUrl}`);
+    console.log(`🎨 ${t('server.renderingWithPuppeteer', { url: fullUrl })}`);
     const renderStartTime = Date.now();
     const renderResult = await browserManager.render(fullUrl);
     const renderTime = Date.now() - renderStartTime;
@@ -284,9 +285,9 @@ app.use(async (req: Request, res: Response, next: NextFunction) => {
 
     if (finalDecision.shouldCache) {
       cache.set(cacheKey, html);
-      console.log(`💾 HTML cached for: ${requestPath}`);
+      console.log(`💾 ${t('server.htmlCached', { ttl: config.CACHE_TTL, url: requestPath })}`);
     } else {
-      console.log(`⚠️  HTML NOT cached: ${finalDecision.reason}`);
+      console.log(`⚠️  ${t('server.htmlNotCached', { url: requestPath })}`);
     }
 
     metricsCollector.recordRequest({
@@ -429,7 +430,7 @@ app.post('/cache/clear', (_req: Request, res: Response) => {
     const statsBefore = cache.getStats();
     cache.flush();
 
-    console.log(`🗑️  Cache cleared via API (${statsBefore.keys} keys removed)`);
+    console.log(`🗑️  ${t('server.cacheClearedViaApi')} (${statsBefore.keys} keys removed)`);
 
     res.json({
       status: 'ok',
@@ -456,9 +457,9 @@ if (process.env['NODE_ENV'] !== 'test') {
   httpServer.listen(config.PORT, () => {
     console.log('');
     console.log('═══════════════════════════════════════════════════════════');
-    console.log('🛡️  SEO Shield Proxy - Production Ready');
+    console.log(`🛡️  ${t('server.starting')}`);
     console.log('═══════════════════════════════════════════════════════════');
-    console.log(`🚀 Server running on port ${config.PORT}`);
+    console.log(`🚀 ${t('server.listening', { port: config.PORT })}`);
     console.log(`🎯 Target URL: ${config.TARGET_URL}`);
     console.log(`💾 Cache TTL: ${config.CACHE_TTL}s`);
     console.log(`⏱️  Puppeteer timeout: ${config.PUPPETEER_TIMEOUT}ms`);
@@ -468,8 +469,8 @@ if (process.env['NODE_ENV'] !== 'test') {
     console.log(`  - Clear cache: POST http://localhost:${config.PORT}/cache/clear`);
     console.log(`  - Admin Dashboard: http://localhost:${config.PORT}/admin`);
     console.log('');
-    console.log('Bot detection: ✅ Active');
-    console.log('SSR rendering: ✅ Active');
+    console.log(t('server.botDetectionActive'));
+    console.log(t('server.ssrActive'));
     console.log('Reverse proxy: ✅ Active');
     console.log('WebSocket: ✅ Active');
     console.log('═══════════════════════════════════════════════════════════');
@@ -483,10 +484,10 @@ if (process.env['NODE_ENV'] !== 'test') {
  * Graceful shutdown
  */
 process.on('SIGTERM', async () => {
-  console.log('⚠️  SIGTERM received, shutting down gracefully...');
+  console.log(`⚠️  ${t('server.gracefulShutdown')}`);
 
   httpServer.close(async () => {
-    console.log('🔒 HTTP server closed');
+    console.log(`🔒 ${t('server.serverClosed')}`);
     await browserManager.close();
     process.exit(0);
   });
@@ -498,10 +499,10 @@ process.on('SIGTERM', async () => {
 });
 
 process.on('SIGINT', async () => {
-  console.log('\n⚠️  SIGINT received, shutting down gracefully...');
+  console.log(`\n⚠️  ${t('server.gracefulShutdown')}`);
 
   httpServer.close(async () => {
-    console.log('🔒 HTTP server closed');
+    console.log(`🔒 ${t('server.serverClosed')}`);
     await browserManager.close();
     process.exit(0);
   });

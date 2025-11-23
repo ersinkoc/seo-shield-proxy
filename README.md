@@ -106,6 +106,59 @@ CACHE_BY_DEFAULT=true
 
 See [.env.example](.env.example) for all options.
 
+## 🌍 Language Support / Dil Desteği
+
+SEO Shield Proxy now supports **Turkish (Türkçe)** and **English** languages for both backend logs and frontend admin dashboard!
+
+### Backend Language
+
+Set the language for server logs and API responses via the `LANGUAGE` environment variable:
+
+```bash
+# Turkish (default)
+LANGUAGE=tr
+
+# English
+LANGUAGE=en
+```
+
+This affects:
+- Console logs and error messages
+- API response messages
+- Server startup messages
+
+### Frontend Language
+
+The admin dashboard automatically uses Turkish by default. Users can also change the language programmatically:
+
+```javascript
+// In browser console or code
+localStorage.setItem('language', 'tr'); // Turkish
+localStorage.setItem('language', 'en'); // English
+// Then refresh the page
+```
+
+### Available Translations
+
+**Türkçe (Turkish):**
+- ✅ Tüm backend log mesajları
+- ✅ API yanıt mesajları
+- ✅ Admin dashboard arayüzü
+- ✅ Giriş sayfası
+- ✅ Tüm menü ve butonlar
+
+**English:**
+- ✅ All backend log messages
+- ✅ API response messages
+- ✅ Admin dashboard interface
+- ✅ Login page
+- ✅ All menus and buttons
+
+### Translation Files
+
+Backend translations: `locales/[lang]/translation.json`
+Frontend translations: `admin-dashboard/src/locales/[lang].json`
+
 ## 📚 Documentation
 
 - [START.md](START.md) - Complete setup guide

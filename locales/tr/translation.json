@@ -1,0 +1,68 @@
+{
+  "server": {
+    "starting": "SEO Shield Proxy - Üretime Hazır",
+    "adminPanel": "Admin paneli şu adreste: {{url}}",
+    "adminPanelFailed": "Admin paneli yüklenemedi",
+    "staticAsset": "Statik varlık tespit edildi: {{path}}",
+    "humanDetected": "İnsan kullanıcı tespit edildi: {{url}}",
+    "botDetected": "Bot tespit edildi: {{name}}",
+    "renderPreview": "Önizleme render'ı istendi: {{url}}",
+    "renderingWithPuppeteer": "Puppeteer ile render ediliyor: {{url}}",
+    "htmlCached": "HTML {{ttl}}s için cache'lendi: {{url}}",
+    "htmlNotCached": "HTML cache'lenmedi: {{url}}",
+    "cacheClearedViaApi": "Cache API üzerinden temizlendi",
+    "healthCheckError": "Sağlık kontrolü hatası",
+    "cacheClearError": "Cache temizleme hatası",
+    "gracefulShutdown": "Zarif kapanış başlatıldı...",
+    "serverClosing": "Sunucu kapatılıyor...",
+    "serverClosed": "Sunucu kapatıldı",
+    "closeError": "Sunucu kapatma hatası",
+    "exitingProcess": "İşlem sonlandırılıyor...",
+    "listening": "Sunucu {{port}} portunda dinliyor",
+    "botDetectionActive": "Bot algılama: ✅ Aktif",
+    "ssrActive": "SSR render: ✅ Aktif",
+    "cacheActive": "Önbellek: ✅ Aktif ({{type}})",
+    "adminActive": "Admin: ✅ {{url}}"
+  },
+  "admin": {
+    "configUpdated": "Yapılandırma güncellendi",
+    "cachePatternAdded": "Cache deseni eklendi: {{pattern}}",
+    "cachePatternRemoved": "Cache deseni kaldırıldı: {{pattern}}",
+    "botAllowed": "Bot izin verildi: {{name}}",
+    "botBlocked": "Bot engellendi: {{name}}",
+    "botRemoved": "Bot kaldırıldı: {{name}}",
+    "configReset": "Yapılandırma varsayılanlara sıfırlandı",
+    "metricsReset": "Metrikler sıfırlandı",
+    "authRequired": "Kimlik doğrulama gerekli",
+    "invalidCredentials": "Geçersiz kimlik bilgileri",
+    "patternRequired": "Desen gerekli",
+    "botNameRequired": "Bot adı ve işlem gerekli",
+    "loginSuccess": "Giriş başarılı",
+    "loginFailed": "Giriş başarısız"
+  },
+  "cache": {
+    "cleared": "Cache temizlendi",
+    "hit": "Cache isabeti: {{url}}",
+    "miss": "Cache ıskaladı: {{url}}",
+    "invalidated": "Cache geçersiz kılındı: {{url}}",
+    "redisConnected": "Redis'e bağlanıldı",
+    "redisError": "Redis hatası",
+    "redisDisconnected": "Redis bağlantısı kesildi"
+  },
+  "config": {
+    "validationError": "Yapılandırma doğrulama hatası",
+    "invalidPort": "Geçersiz port numarası",
+    "invalidCacheTtl": "Geçersiz cache TTL",
+    "invalidMaxConcurrency": "Geçersiz maksimum eşzamanlılık",
+    "missingTargetUrl": "TARGET_URL eksik veya geçersiz"
+  },
+  "browser": {
+    "launching": "Tarayıcı havuzu başlatılıyor...",
+    "launched": "Tarayıcı havuzu başlatıldı",
+    "launchError": "Tarayıcı başlatma hatası",
+    "closing": "Tarayıcı havuzu kapatılıyor...",
+    "closed": "Tarayıcı havuzu kapatıldı",
+    "renderError": "Render hatası: {{url}}",
+    "timeout": "Render zaman aşımı: {{url}}"
+  }
+}

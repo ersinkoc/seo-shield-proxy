@@ -9,6 +9,7 @@ import metricsCollector from './metrics-collector.js';
 import configManager from './config-manager.js';
 import cache from '../cache.js';
 import browserManager from '../browser.js';
+import { t } from '../i18n.js';
 
 const router: Router = express.Router();
 
@@ -27,7 +28,7 @@ function authenticate(req: Request, res: Response, next: NextFunction): void | R
 
     if (!authHeader || !authHeader.startsWith('Basic ')) {
       res.setHeader('WWW-Authenticate', 'Basic realm="Admin Panel"');
-      return res.status(401).json({ error: 'Authentication required' });
+      return res.status(401).json({ error: t('admin.authRequired') });
     }
 
     try {
@@ -37,7 +38,7 @@ function authenticate(req: Request, res: Response, next: NextFunction): void | R
 
       if (!username || !password) {
         res.setHeader('WWW-Authenticate', 'Basic realm="Admin Panel"');
-        return res.status(401).json({ error: 'Invalid credentials format' });
+        return res.status(401).json({ error: t('admin.invalidCredentials') });
       }
 
       if (
@@ -47,7 +48,7 @@ function authenticate(req: Request, res: Response, next: NextFunction): void | R
         return next();
       } else {
         res.setHeader('WWW-Authenticate', 'Basic realm="Admin Panel"');
-        return res.status(401).json({ error: 'Invalid credentials' });
+        return res.status(401).json({ error: t('admin.invalidCredentials') });
       }
     } catch (decodeError) {
       console.error('Auth decode error:', decodeError);
@@ -176,7 +177,7 @@ router.post('/api/config', authenticate, express.json(), async (req: Request, re
 
     res.json({
       success: true,
-      message: 'Configuration updated',
+      message: t('admin.configUpdated'),
       data: newConfig,
     });
   } catch (error) {
@@ -201,7 +202,7 @@ router.post(
       if (!pattern) {
         return res.status(400).json({
           success: false,
-          error: 'Pattern is required',
+          error: t('admin.patternRequired'),
         });
       }
 
@@ -209,7 +210,7 @@ router.post(
 
       return res.json({
         success: true,
-        message: 'Cache pattern added',
+        message: t('admin.cachePatternAdded', { pattern }),
         data: config,
       });
     } catch (error) {
@@ -235,7 +236,7 @@ router.delete(
       if (!pattern) {
         return res.status(400).json({
           success: false,
-          error: 'Pattern is required',
+          error: t('admin.patternRequired'),
         });
       }
 
@@ -243,7 +244,7 @@ router.delete(
 
       return res.json({
         success: true,
-        message: 'Cache pattern removed',
+        message: t('admin.cachePatternRemoved', { pattern }),
         data: config,
       });
     } catch (error) {
@@ -265,21 +266,25 @@ router.post('/api/config/bot', authenticate, express.json(), async (req: Request
     if (!botName || !action) {
       return res.status(400).json({
         success: false,
-        error: 'Bot name and action are required',
+        error: t('admin.botNameRequired'),
       });
     }
 
     let config;
+    let message;
 
     switch (action) {
       case 'allow':
         config = await configManager.addAllowedBot(botName);
+        message = t('admin.botAllowed', { name: botName });
         break;
       case 'block':
         config = await configManager.addBlockedBot(botName);
+        message = t('admin.botBlocked', { name: botName });
         break;
       case 'remove':
         config = await configManager.removeBot(botName);
+        message = t('admin.botRemoved', { name: botName });
         break;
       default:
         return res.status(400).json({
@@ -290,7 +295,7 @@ router.post('/api/config/bot', authenticate, express.json(), async (req: Request
 
     return res.json({
       success: true,
-      message: `Bot ${botName} ${action}ed`,
+      message,
       data: config,
     });
   } catch (error) {
@@ -310,7 +315,7 @@ router.post('/api/config/reset', authenticate, async (_req: Request, res: Respon
 
     res.json({
       success: true,
-      message: 'Configuration reset to defaults',
+      message: t('admin.configReset'),
       data: config,
     });
   } catch (error) {
@@ -329,7 +334,7 @@ router.post('/api/metrics/reset', authenticate, (_req: Request, res: Response) =
 
   res.json({
     success: true,
-    message: 'Metrics reset',
+    message: t('admin.metricsReset'),
   });
 });
 

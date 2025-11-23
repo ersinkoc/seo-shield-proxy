@@ -1,0 +1,95 @@
+{
+  "common": {
+    "loading": "Yükleniyor...",
+    "error": "Hata",
+    "success": "Başarılı",
+    "logout": "Çıkış"
+  },
+  "login": {
+    "title": "SEO Shield Admin",
+    "subtitle": "Devam etmek için şifrenizi girin",
+    "password": "Şifre",
+    "loginButton": "Giriş Yap",
+    "verifying": "Doğrulanıyor...",
+    "invalidPassword": "Geçersiz şifre. Lütfen tekrar deneyin.",
+    "connectionError": "Bağlantı hatası. Lütfen tekrar deneyin."
+  },
+  "header": {
+    "title": "SEO Shield Proxy",
+    "subtitle": "Admin Dashboard",
+    "connected": "Bağlı",
+    "disconnected": "Bağlantı Kesildi"
+  },
+  "tabs": {
+    "overview": "Genel Bakış",
+    "traffic": "Trafik",
+    "cache": "Önbellek",
+    "config": "Yapılandırma"
+  },
+  "stats": {
+    "totalRequests": "Toplam İstek",
+    "botRequests": "Bot İstekleri",
+    "ssrRendered": "SSR Render",
+    "cacheHitRate": "Önbellek İsabet Oranı",
+    "cachedPages": "Önbelleğe Alınan Sayfalar",
+    "memoryUsed": "Kullanılan Bellek"
+  },
+  "cache": {
+    "title": "Önbellek Yönetimi",
+    "clearAll": "Tüm Önbelleği Temizle",
+    "totalCachedPages": "Toplam Önbelleğe Alınan Sayfa",
+    "cacheHits": "Önbellek İsabetleri",
+    "cacheMisses": "Önbellek Iskalamalar",
+    "hitRate": "İsabet Oranı",
+    "cachedUrls": "Önbelleğe Alınan URL'ler",
+    "url": "URL",
+    "size": "Boyut",
+    "ttl": "TTL",
+    "action": "İşlem",
+    "delete": "Sil",
+    "noData": "Önbellekte veri yok"
+  },
+  "config": {
+    "title": "Yapılandırma",
+    "cacheRules": "Önbellek Kuralları",
+    "cacheByDefault": "Varsayılan olarak önbelleğe al",
+    "metaTagName": "Meta Etiket Adı",
+    "noCachePatterns": "Önbelleğe Alma Desenleri",
+    "cachePatterns": "Önbellek Desenleri",
+    "addPattern": "Desen Ekle",
+    "pattern": "Desen",
+    "add": "Ekle",
+    "botRules": "Bot Kuralları",
+    "renderAllBots": "Tüm botları render et",
+    "allowedBots": "İzin Verilen Botlar",
+    "blockedBots": "Engellenen Botlar",
+    "addBot": "Bot Ekle",
+    "botName": "Bot Adı",
+    "allow": "İzin Ver",
+    "block": "Engelle",
+    "remove": "Kaldır",
+    "save": "Kaydet",
+    "reset": "Sıfırla",
+    "resetToDefaults": "Varsayılanlara Sıfırla"
+  },
+  "traffic": {
+    "title": "Son Trafik",
+    "time": "Zaman",
+    "path": "Yol",
+    "userAgent": "Kullanıcı Ajanı",
+    "type": "Tür",
+    "cache": "Önbellek",
+    "bot": "Bot",
+    "human": "İnsan",
+    "static": "Statik",
+    "proxy": "Proxy",
+    "ssr": "SSR",
+    "hit": "İsabet",
+    "miss": "Iskalama",
+    "stale": "Eski"
+  },
+  "botStats": {
+    "title": "Bot İstatistikleri",
+    "requests": "İstekler"
+  }
+}

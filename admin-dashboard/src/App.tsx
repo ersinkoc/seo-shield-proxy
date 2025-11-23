@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useWebSocket } from './hooks/useWebSocket';
 import LoginPage from './components/LoginPage';
 import Header from './components/Header';
@@ -11,6 +12,7 @@ import ConfigPanel from './components/ConfigPanel';
 import type { TabButtonProps } from './types';
 
 function App() {
+  const { t } = useTranslation();
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<string>('overview');
   const { stats, traffic, isConnected } = useWebSocket();
@@ -47,25 +49,25 @@ function App() {
               active={activeTab === 'overview'}
               onClick={() => setActiveTab('overview')}
               icon="📊"
-              label="Overview"
+              label={t('tabs.overview')}
             />
             <TabButton
               active={activeTab === 'traffic'}
               onClick={() => setActiveTab('traffic')}
               icon="🚦"
-              label="Traffic"
+              label={t('tabs.traffic')}
             />
             <TabButton
               active={activeTab === 'cache'}
               onClick={() => setActiveTab('cache')}
               icon="💾"
-              label="Cache"
+              label={t('tabs.cache')}
             />
             <TabButton
               active={activeTab === 'config'}
               onClick={() => setActiveTab('config')}
               icon="⚙️"
-              label="Config"
+              label={t('tabs.config')}
             />
           </div>
         </div>

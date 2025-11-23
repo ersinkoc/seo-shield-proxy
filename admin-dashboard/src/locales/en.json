@@ -1,0 +1,95 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "logout": "Logout"
+  },
+  "login": {
+    "title": "SEO Shield Admin",
+    "subtitle": "Enter password to continue",
+    "password": "Password",
+    "loginButton": "Login",
+    "verifying": "Verifying...",
+    "invalidPassword": "Invalid password. Please try again.",
+    "connectionError": "Connection error. Please try again."
+  },
+  "header": {
+    "title": "SEO Shield Proxy",
+    "subtitle": "Admin Dashboard",
+    "connected": "Connected",
+    "disconnected": "Disconnected"
+  },
+  "tabs": {
+    "overview": "Overview",
+    "traffic": "Traffic",
+    "cache": "Cache",
+    "config": "Config"
+  },
+  "stats": {
+    "totalRequests": "Total Requests",
+    "botRequests": "Bot Requests",
+    "ssrRendered": "SSR Rendered",
+    "cacheHitRate": "Cache Hit Rate",
+    "cachedPages": "Cached Pages",
+    "memoryUsed": "Memory Used"
+  },
+  "cache": {
+    "title": "Cache Management",
+    "clearAll": "Clear All Cache",
+    "totalCachedPages": "Total Cached Pages",
+    "cacheHits": "Cache Hits",
+    "cacheMisses": "Cache Misses",
+    "hitRate": "Hit Rate",
+    "cachedUrls": "Cached URLs",
+    "url": "URL",
+    "size": "Size",
+    "ttl": "TTL",
+    "action": "Action",
+    "delete": "Delete",
+    "noData": "No cached data"
+  },
+  "config": {
+    "title": "Configuration",
+    "cacheRules": "Cache Rules",
+    "cacheByDefault": "Cache by default",
+    "metaTagName": "Meta Tag Name",
+    "noCachePatterns": "No-Cache Patterns",
+    "cachePatterns": "Cache Patterns",
+    "addPattern": "Add Pattern",
+    "pattern": "Pattern",
+    "add": "Add",
+    "botRules": "Bot Rules",
+    "renderAllBots": "Render all bots",
+    "allowedBots": "Allowed Bots",
+    "blockedBots": "Blocked Bots",
+    "addBot": "Add Bot",
+    "botName": "Bot Name",
+    "allow": "Allow",
+    "block": "Block",
+    "remove": "Remove",
+    "save": "Save",
+    "reset": "Reset",
+    "resetToDefaults": "Reset to Defaults"
+  },
+  "traffic": {
+    "title": "Recent Traffic",
+    "time": "Time",
+    "path": "Path",
+    "userAgent": "User Agent",
+    "type": "Type",
+    "cache": "Cache",
+    "bot": "Bot",
+    "human": "Human",
+    "static": "Static",
+    "proxy": "Proxy",
+    "ssr": "SSR",
+    "hit": "Hit",
+    "miss": "Miss",
+    "stale": "Stale"
+  },
+  "botStats": {
+    "title": "Bot Statistics",
+    "requests": "Requests"
+  }
+}
