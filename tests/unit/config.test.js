@@ -291,6 +291,28 @@ describe('Config Module', () => {
       expect(typeof config.PUPPETEER_TIMEOUT).toBe('number');
       expect(config.PUPPETEER_TIMEOUT).toBe(45000);
     });
+
+    test('should handle invalid CACHE_TTL gracefully (use default)', async () => {
+      process.env = {
+        ...originalEnv,
+        TARGET_URL: 'https://test.com',
+        CACHE_TTL: 'invalid',
+      };
+
+      const { default: config } = await import('../../dist/config.js');
+      expect(config.CACHE_TTL).toBe(3600); // Default value
+    });
+
+    test('should handle invalid PUPPETEER_TIMEOUT gracefully (use default)', async () => {
+      process.env = {
+        ...originalEnv,
+        TARGET_URL: 'https://test.com',
+        PUPPETEER_TIMEOUT: 'invalid',
+      };
+
+      const { default: config } = await import('../../dist/config.js');
+      expect(config.PUPPETEER_TIMEOUT).toBe(30000); // Default value
+    });
   });
 
   describe('URL Validation', () => {

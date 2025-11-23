@@ -128,6 +128,31 @@ describe('Browser Manager', () => {
 
       expect(browserManager.browser).toBeNull();
     });
+
+    test('should add single-process flag when PUPPETEER_SINGLE_PROCESS is true', async () => {
+      // Save original env
+      const originalEnv = process.env['PUPPETEER_SINGLE_PROCESS'];
+
+      // Set env variable
+      process.env['PUPPETEER_SINGLE_PROCESS'] = 'true';
+
+      // Reset browser manager state
+      browserManager.browser = null;
+      browserManager.isLaunching = false;
+      browserManager.launchPromise = null;
+
+      await browserManager.getBrowser();
+
+      const launchArgs = mockPuppeteer.launch.mock.calls[mockPuppeteer.launch.mock.calls.length - 1][0];
+      expect(launchArgs.args).toContain('--single-process');
+
+      // Restore original env
+      if (originalEnv !== undefined) {
+        process.env['PUPPETEER_SINGLE_PROCESS'] = originalEnv;
+      } else {
+        delete process.env['PUPPETEER_SINGLE_PROCESS'];
+      }
+    });
   });
 
   describe('render() method', () => {
@@ -322,6 +347,24 @@ describe('Browser Manager', () => {
 
       expect(xhrRequest.continue).toHaveBeenCalled();
     });
+
+    test('should handle request interception errors gracefully', async () => {
+      const errorRequest = {
+        resourceType: jest.fn().mockImplementation(() => {
+          throw new Error('Request already handled');
+        }),
+        abort: jest.fn(),
+        continue: jest.fn(),
+      };
+
+      const mockPage = createMockPage({
+        mockRequests: [errorRequest],
+      });
+      mockBrowser.newPage.mockResolvedValue(mockPage);
+
+      // Should not throw - error should be caught and logged
+      await expect(browserManager.render('https://example.com')).resolves.toBeDefined();
+    });
   });
 
   describe('Error Handling', () => {
@@ -351,6 +394,52 @@ describe('Browser Manager', () => {
       mockBrowser.newPage.mockResolvedValue(mockPage);
 
       await expect(browserManager.render('https://example.com')).rejects.toThrow();
+    });
+
+    test('should fallback to networkidle2 when networkidle0 fails', async () => {
+      let callCount = 0;
+      const mockPage = createMockPage({
+        goto: jest.fn().mockImplementation(() => {
+          callCount++;
+          if (callCount === 1) {
+            return Promise.reject(new Error('networkidle0 timeout'));
+          }
+          return Promise.resolve();
+        }),
+      });
+      mockBrowser.newPage.mockResolvedValue(mockPage);
+
+      const html = await browserManager.render('https://example.com');
+
+      expect(mockPage.goto).toHaveBeenCalledTimes(2);
+      expect(mockPage.goto).toHaveBeenCalledWith(
+        'https://example.com',
+        expect.objectContaining({ waitUntil: 'networkidle2' })
+      );
+      expect(html).toContain('Mock Page');
+    });
+
+    test('should fallback to domcontentloaded when networkidle2 fails', async () => {
+      let callCount = 0;
+      const mockPage = createMockPage({
+        goto: jest.fn().mockImplementation(() => {
+          callCount++;
+          if (callCount <= 2) {
+            return Promise.reject(new Error('networkidle timeout'));
+          }
+          return Promise.resolve();
+        }),
+      });
+      mockBrowser.newPage.mockResolvedValue(mockPage);
+
+      const html = await browserManager.render('https://example.com');
+
+      expect(mockPage.goto).toHaveBeenCalledTimes(3);
+      expect(mockPage.goto).toHaveBeenCalledWith(
+        'https://example.com',
+        expect.objectContaining({ waitUntil: 'domcontentloaded' })
+      );
+      expect(html).toContain('Mock Page');
     });
   });
 
