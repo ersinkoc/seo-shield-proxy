@@ -14,16 +14,34 @@ const app = express();
 // Initialize cache rules
 const cacheRules = new CacheRules(config);
 
-// Mount admin panel (will be available at /admin after config loads)
-// Config manager loads async, so we use a middleware wrapper
-app.use('/admin', (req, res, next) => {
-  // Check if admin path has been customized in runtime config
-  const config = configManager.getConfig();
-  if (config && config.adminPath && config.adminPath !== '/admin') {
-    // Redirect to custom admin path
-    return res.redirect(config.adminPath + req.url);
+// Mount admin panel dynamically based on runtime config
+// This allows the admin path to be changed in runtime-config.json without restart
+app.use((req, res, next) => {
+  const runtimeConfig = configManager.getConfig();
+  const adminPath = runtimeConfig?.adminPath || '/admin';
+
+  // Check if request is for admin panel
+  if (req.path.startsWith(adminPath)) {
+    // Remove admin path prefix and pass to admin routes
+    const originalUrl = req.url;
+    const originalPath = req.path;
+
+    // Adjust path for admin routes
+    req.url = req.url.replace(adminPath, '') || '/';
+    req.path = req.path.replace(adminPath, '') || '/';
+    req.baseUrl = adminPath;
+
+    // Call admin routes
+    adminRoutes(req, res, (err) => {
+      // Restore original URL if route not found
+      req.url = originalUrl;
+      req.path = originalPath;
+      if (err) return next(err);
+      next();
+    });
+  } else {
+    next();
   }
-  adminRoutes(req, res, next);
 });
 
 /**
