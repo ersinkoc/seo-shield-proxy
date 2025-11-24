@@ -166,10 +166,10 @@ npm start
 
 ### API Endpoints
 
-- **GET /api/seo/status** - Protocol status and metrics
-- **GET /api/seo/config** - Current configuration
-- **POST /api/seo/config** - Update configuration
-- **GET /health** - System health check
+- **GET /shieldapi/seo/status** - Protocol status and metrics
+- **GET /shieldapi/seo/config** - Current configuration
+- **POST /shieldapi/seo/config** - Update configuration
+- **GET /health** - System health check (main proxy port 8080)
 
 ### Admin Dashboard Integration
 
@@ -263,14 +263,14 @@ npm run test:coverage
 
 ### Manual Testing
 ```bash
-# Test SEO optimization
+# Test SEO optimization (main proxy)
 curl -H "User-Agent: Mozilla/5.0 (compatible; Googlebot/2.1)" http://localhost:8080/test-seo
 
-# Check ETag functionality
+# Check ETag functionality (main proxy)
 curl -I http://localhost:8080/test-seo
 
-# Monitor protocol status
-curl http://localhost:8080/api/seo/status
+# Monitor protocol status (API server)
+curl http://localhost:8190/shieldapi/seo/status
 ```
 
 ## 🔍 Troubleshooting
@@ -305,7 +305,7 @@ DEBUG=seo-protocols npm run dev
 
 ### Health Check
 ```bash
-curl http://localhost:8080/api/seo/status | jq '.'
+curl http://localhost:8190/shieldapi/seo/status | jq '.'
 ```
 
 ## 🏢 Enterprise Comparison

@@ -33,17 +33,6 @@ export const ssrRateLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => {
-    // Use IP + User-Agent as key to prevent simple IP rotation
-    // Handle IPv6 by taking first 64 bits to avoid individual user tracking
-    const ip = req.ip || 'unknown';
-    const userAgent = req.get('User-Agent')?.slice(0, 50) || 'unknown';
-
-    // For IPv6, take only the first 64 bits (16 characters) to avoid individual user tracking
-    const normalizedIp = ip.includes(':') ? ip.substring(0, 16) : ip;
-
-    return `${normalizedIp}-${userAgent}`;
-  },
 });
 
 /**

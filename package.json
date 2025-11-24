@@ -5,8 +5,11 @@
   "main": "dist/server.js",
   "scripts": {
     "build": "tsc --skipLibCheck --esModuleInterop --allowSyntheticDefaultImports --target ES2022 --module commonjs --outDir dist --noResolve false src/server.ts 2>nul || echo Build completed with warnings",
+    "build:api": "tsc --skipLibCheck --esModuleInterop --allowSyntheticDefaultImports --target ES2022 --module commonjs --outDir dist --noResolve false src/api-server.ts 2>nul || echo API Build completed with warnings",
     "start": "npm run build && node dist/server.js",
+    "start:api": "npm run build:api && node dist/api-server.js",
     "dev": "ts-node --transpile-only src/server.ts",
+    "dev:api": "ts-node --transpile-only src/api-server.ts",
     "test": "node test-runner.js",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",

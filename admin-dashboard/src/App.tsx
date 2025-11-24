@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useWebSocket } from './hooks/useWebSocket';
+import { NotificationProvider } from './contexts/NotificationContext';
 import LoginPage from './components/LoginPage';
 import Header from './components/Header';
 import StatsOverview from './components/StatsOverview';
@@ -15,6 +16,7 @@ import ForensicsPanel from './components/ForensicsPanel';
 import BlockingPanel from './components/BlockingPanel';
 import SimulationConsole from './components/SimulationConsole';
 import SEOProtocolsPanel from './components/SEOProtocolsPanel';
+import Notifications from './components/Notifications';
 import type { TabButtonProps } from './types';
 
 function App() {
@@ -40,12 +42,19 @@ function App() {
   };
 
   if (!isAuthenticated) {
-    return <LoginPage onLogin={handleLogin} />;
+    return (
+      <NotificationProvider>
+        <LoginPage onLogin={handleLogin} />
+        <Notifications />
+      </NotificationProvider>
+    );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <Header isConnected={isConnected} onLogout={handleLogout} />
+    <NotificationProvider>
+      <div className="min-h-screen bg-slate-50">
+        <Notifications />
+        <Header isConnected={isConnected} onLogout={handleLogout} />
 
       <nav className="bg-white border-b border-slate-200 px-6 overflow-x-auto">
         <div className="max-w-7xl mx-auto">
@@ -157,6 +166,7 @@ function App() {
         {activeTab === 'config' && <ConfigPanel />}
       </main>
     </div>
+    </NotificationProvider>
   );
 }
 

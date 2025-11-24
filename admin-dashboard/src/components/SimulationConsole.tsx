@@ -39,8 +39,8 @@ export default function SimulationConsole() {
   const fetchData = async () => {
     try {
       const [uaResponse, resultsResponse] = await Promise.all([
-        fetch('/api/admin/ua-simulator/agents'),
-        fetch('/api/admin/ua-simulator/results?limit=50')
+        fetch('/api/ua-simulator/agents'),
+        fetch('/api/ua-simulator/results?limit=50')
       ]);
 
       if (uaResponse.ok && resultsResponse.ok) {
@@ -64,7 +64,7 @@ export default function SimulationConsole() {
 
     setLoading(true);
     try {
-      const endpoint = batchMode ? '/api/admin/ua-simulator/batch' : '/api/admin/ua-simulator/simulate';
+      const endpoint = batchMode ? '/api/ua-simulator/batch' : '/api/ua-simulator/simulate';
       const body = batchMode
         ? { url: testUrl, types: selectedType === 'all' ? ['googlebot', 'bingbot', 'facebook', 'twitter'] : [selectedType] }
         : { url: testUrl, userAgent: selectedUA || customUA };

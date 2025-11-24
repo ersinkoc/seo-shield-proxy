@@ -54,7 +54,7 @@ const SnapshotDiff = () => {
 
   const fetchSnapshots = async (pageNum: number) => {
     try {
-      const response = await fetch(`/api/snapshots?page=${pageNum}&limit=20`, {
+      const response = await fetch(`/shieldadmin/shieldapi/snapshots?page=${pageNum}&limit=20`, {
         headers: {
           'Authorization': `Basic ${btoa(localStorage.getItem('adminCredentials') || '')}`,
         },
@@ -150,7 +150,7 @@ const SnapshotDiff = () => {
     if (!confirm('Are you sure you want to delete this snapshot?')) return;
 
     try {
-      const response = await fetch(`/api/snapshots/${id}`, {
+      const response = await fetch(`/shieldadmin/shieldapi/snapshots/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Basic ${btoa(localStorage.getItem('adminCredentials') || '')}`,

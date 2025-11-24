@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import { useNotifications } from '../contexts/NotificationContext';
+import { useConfirm } from './ConfirmModal';
 
 interface BlockingRule {
   id: string;
@@ -30,8 +32,10 @@ export default function BlockingPanel() {
     pattern: '',
     type: 'ip' as BlockingRule['type'],
     action: 'block' as BlockingRule['action'],
-    description: ''
   });
+
+  const { addNotification } = useNotifications();
+  const { confirm, ConfirmComponent } = useConfirm();
 
   useEffect(() => {
     fetchBlockingData();
@@ -43,8 +47,8 @@ export default function BlockingPanel() {
     try {
       setLoading(true);
       const [rulesResponse, statsResponse] = await Promise.all([
-        fetch('/api/admin/blocking/rules'),
-        fetch('/api/admin/blocking/stats')
+        fetch('/api/blocking/rules'),
+        fetch('/api/blocking/stats')
       ]);
 
       if (rulesResponse.ok && statsResponse.ok) {
@@ -64,7 +68,7 @@ export default function BlockingPanel() {
 
   const toggleRule = async (ruleId: string) => {
     try {
-      const response = await fetch(`/api/admin/blocking/rules/${ruleId}/toggle`, {
+      const response = await fetch(`/shieldadmin/shieldapi/blocking/rules/${ruleId}/toggle`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       });
@@ -77,10 +81,17 @@ export default function BlockingPanel() {
   };
 
   const deleteRule = async (ruleId: string) => {
-    if (!confirm('Are you sure you want to delete this rule?')) return;
+    const shouldDelete = await confirm(
+      'Delete Blocking Rule',
+      'Are you sure you want to delete this rule?',
+      async () => {},
+      { type: 'warning', confirmText: 'Delete', cancelText: 'Cancel' }
+    );
+
+    if (!shouldDelete) return;
 
     try {
-      const response = await fetch(`/api/admin/blocking/rules/${ruleId}`, {
+      const response = await fetch(`/shieldadmin/shieldapi/blocking/rules/${ruleId}`, {
         method: 'DELETE',
       });
       if (response.ok) {
@@ -93,12 +104,12 @@ export default function BlockingPanel() {
 
   const addRule = async () => {
     if (!newRule.name || !newRule.pattern) {
-      alert('Name and pattern are required');
+      addNotification('Name and pattern are required', 'error');
       return;
     }
 
     try {
-      const response = await fetch('/api/admin/blocking/rules', {
+      const response = await fetch('/api/blocking/rules', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newRule),
@@ -110,7 +121,6 @@ export default function BlockingPanel() {
           pattern: '',
           type: 'ip',
           action: 'block',
-          description: ''
         });
         fetchBlockingData();
       }
@@ -147,7 +157,9 @@ export default function BlockingPanel() {
   }
 
   return (
-    <div className="space-y-6">
+    <>
+      <ConfirmComponent />
+      <div className="space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-slate-900">Request Blocking Manager</h2>
@@ -331,16 +343,6 @@ export default function BlockingPanel() {
                   <option value="allow">Allow</option>
                 </select>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
-                <textarea
-                  value={newRule.description}
-                  onChange={(e) => setNewRule({ ...newRule, description: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  rows={3}
-                  placeholder="Optional description of this rule"
-                />
-              </div>
             </div>
             <div className="flex justify-end gap-3 mt-6">
               <button
@@ -360,5 +362,6 @@ export default function BlockingPanel() {
         </div>
       )}
     </div>
+    </>
   );
 }

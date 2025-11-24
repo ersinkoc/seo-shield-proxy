@@ -5,6 +5,7 @@ import { ShadowDOMExtractor } from '../../src/admin/shadow-dom-extractor';
 import { CircuitBreaker, CircuitBreakerManager } from '../../src/admin/circuit-breaker';
 import { ClusterManager } from '../../src/admin/cluster-manager';
 import { SEOProtocolsService } from '../../src/admin/seo-protocols-service';
+import { vi } from 'vitest';
 
 // Mock console methods to avoid test output pollution
 const originalConsoleLog = console.log;
@@ -12,9 +13,9 @@ const originalConsoleWarn = console.warn;
 const originalConsoleError = console.error;
 
 beforeAll(() => {
-  console.log = jest.fn();
-  console.warn = jest.fn();
-  console.error = jest.fn();
+  console.log = vi.fn();
+  console.warn = vi.fn();
+  console.error = vi.fn();
 });
 
 afterAll(() => {
@@ -23,8 +24,6 @@ afterAll(() => {
   console.error = originalConsoleError;
 });
 
-// Increase timeout for all tests
-jest.setTimeout(30000);
 
 describe('SEO Protocols Safe Tests - Guaranteed 100% Coverage', () => {
   describe('ContentHealthCheckManager - Safe Mode', () => {
@@ -48,7 +47,7 @@ describe('SEO Protocols Safe Tests - Guaranteed 100% Coverage', () => {
     });
 
     afterEach(() => {
-      jest.clearAllMocks();
+      vi.clearAllMocks();
     });
 
     it('should initialize safely', () => {
@@ -59,7 +58,7 @@ describe('SEO Protocols Safe Tests - Guaranteed 100% Coverage', () => {
 
     it('should handle basic health check', async () => {
       const mockPage = {
-        evaluate: jest.fn().mockResolvedValue({
+        evaluate: vi.fn().mockResolvedValue({
           titleLength: 50,
           descriptionLength: 150,
           h1Count: 1,
@@ -79,7 +78,7 @@ describe('SEO Protocols Safe Tests - Guaranteed 100% Coverage', () => {
 
     it('should handle errors gracefully', async () => {
       const mockPage = {
-        evaluate: jest.fn().mockRejectedValue(new Error('Page error'))
+        evaluate: vi.fn().mockRejectedValue(new Error('Page error'))
       } as any;
 
       const result = await manager.checkPageHealth(mockPage, 'http://example.com');
@@ -118,7 +117,7 @@ describe('SEO Protocols Safe Tests - Guaranteed 100% Coverage', () => {
     });
 
     afterEach(() => {
-      jest.clearAllMocks();
+      vi.clearAllMocks();
     });
 
     it('should initialize safely', () => {
@@ -153,12 +152,12 @@ describe('SEO Protocols Safe Tests - Guaranteed 100% Coverage', () => {
 
     it('should handle basic scroll simulation', async () => {
       const mockPage = {
-        evaluate: jest.fn().mockResolvedValue({
+        evaluate: vi.fn().mockResolvedValue({
           finalHeight: 1000,
           scrollSteps: 3,
           totalDistance: 300
         }),
-        waitForTimeout: jest.fn().mockResolvedValue(undefined)
+        waitForTimeout: vi.fn().mockResolvedValue(undefined)
       } as any;
 
       const result = await manager.triggerVirtualScroll(mockPage, 'http://example.com');
@@ -171,7 +170,7 @@ describe('SEO Protocols Safe Tests - Guaranteed 100% Coverage', () => {
 
     it('should handle errors gracefully', async () => {
       const mockPage = {
-        evaluate: jest.fn().mockRejectedValue(new Error('Scroll error'))
+        evaluate: vi.fn().mockRejectedValue(new Error('Scroll error'))
       } as any;
 
       const result = await manager.triggerVirtualScroll(mockPage, 'http://example.com');
@@ -208,7 +207,7 @@ describe('SEO Protocols Safe Tests - Guaranteed 100% Coverage', () => {
     });
 
     afterEach(() => {
-      jest.clearAllMocks();
+      vi.clearAllMocks();
     });
 
     it('should initialize safely', () => {
@@ -295,7 +294,7 @@ describe('SEO Protocols Safe Tests - Guaranteed 100% Coverage', () => {
     });
 
     afterEach(() => {
-      jest.clearAllMocks();
+      vi.clearAllMocks();
     });
 
     it('should initialize safely', () => {
@@ -318,8 +317,8 @@ describe('SEO Protocols Safe Tests - Guaranteed 100% Coverage', () => {
       });
 
       const mockPage = {
-        content: jest.fn().mockResolvedValue('<html><body>Content</body></html>'),
-        evaluate: jest.fn().mockResolvedValue({
+        content: vi.fn().mockResolvedValue('<html><body>Content</body></html>'),
+        evaluate: vi.fn().mockResolvedValue({
           lightDOM: '<html><body>Content</body></html>',
           shadowDOMs: [],
           flattened: '<html><body>Content</body></html>',
@@ -340,8 +339,8 @@ describe('SEO Protocols Safe Tests - Guaranteed 100% Coverage', () => {
 
     it('should handle basic extraction', async () => {
       const mockPage = {
-        content: jest.fn().mockResolvedValue('<html><body>Content</body></html>'),
-        evaluate: jest.fn().mockResolvedValue({
+        content: vi.fn().mockResolvedValue('<html><body>Content</body></html>'),
+        evaluate: vi.fn().mockResolvedValue({
           lightDOM: '<html><body>Content</body></html>',
           shadowDOMs: [],
           flattened: '<html><body>Content</body></html>',
@@ -362,7 +361,7 @@ describe('SEO Protocols Safe Tests - Guaranteed 100% Coverage', () => {
 
     it('should check for Shadow DOM usage', async () => {
       const mockPage = {
-        evaluate: jest.fn().mockResolvedValue(false)
+        evaluate: vi.fn().mockResolvedValue(false)
       } as any;
 
       const hasShadow = await extractor.hasShadowDOM(mockPage);
@@ -397,7 +396,7 @@ describe('SEO Protocols Safe Tests - Guaranteed 100% Coverage', () => {
 
     afterEach(() => {
       circuitBreaker.reset();
-      jest.clearAllMocks();
+      vi.clearAllMocks();
     });
 
     it('should initialize safely', () => {
@@ -409,7 +408,7 @@ describe('SEO Protocols Safe Tests - Guaranteed 100% Coverage', () => {
     });
 
     it('should execute successful operations', async () => {
-      const operation = jest.fn().mockResolvedValue('success');
+      const operation = vi.fn().mockResolvedValue('success');
       const result = await circuitBreaker.execute(operation);
 
       expect(result).toBeDefined();
@@ -420,7 +419,7 @@ describe('SEO Protocols Safe Tests - Guaranteed 100% Coverage', () => {
     });
 
     it('should handle operation failures', async () => {
-      const operation = jest.fn().mockRejectedValue(new Error('Test error'));
+      const operation = vi.fn().mockRejectedValue(new Error('Test error'));
       const result = await circuitBreaker.execute(operation);
 
       expect(result).toBeDefined();
@@ -430,8 +429,8 @@ describe('SEO Protocols Safe Tests - Guaranteed 100% Coverage', () => {
     });
 
     it('should handle fallback when provided', async () => {
-      const operation = jest.fn().mockRejectedValue(new Error('Test error'));
-      const fallback = jest.fn().mockResolvedValue('fallback');
+      const operation = vi.fn().mockRejectedValue(new Error('Test error'));
+      const fallback = vi.fn().mockResolvedValue('fallback');
 
       const result = await circuitBreaker.execute(operation, fallback);
 
@@ -442,7 +441,7 @@ describe('SEO Protocols Safe Tests - Guaranteed 100% Coverage', () => {
     });
 
     it('should transition to open state', async () => {
-      const operation = jest.fn().mockRejectedValue(new Error('Test error'));
+      const operation = vi.fn().mockRejectedValue(new Error('Test error'));
 
       // First failure
       await circuitBreaker.execute(operation);
@@ -562,7 +561,7 @@ describe('SEO Protocols Safe Tests - Guaranteed 100% Coverage', () => {
     });
 
     afterEach(() => {
-      jest.clearAllMocks();
+      vi.clearAllMocks();
     });
 
     it('should initialize safely', () => {
@@ -591,8 +590,8 @@ describe('SEO Protocols Safe Tests - Guaranteed 100% Coverage', () => {
 
     it('should apply optimizations safely', async () => {
       const mockPage = {
-        content: jest.fn().mockResolvedValue('<html><body>Content</body></html>'),
-        evaluate: jest.fn().mockResolvedValue({})
+        content: vi.fn().mockResolvedValue('<html><body>Content</body></html>'),
+        evaluate: vi.fn().mockResolvedValue({})
       } as any;
 
       const result = await service.applyOptimizations({
@@ -666,8 +665,8 @@ describe('SEO Protocols Safe Tests - Guaranteed 100% Coverage', () => {
       await service.initialize();
 
       const mockPage = {
-        content: jest.fn().mockResolvedValue('<html><head><title>Test</title></head><body><h1>Test</h1></body></html>'),
-        evaluate: jest.fn().mockResolvedValueOnce({
+        content: vi.fn().mockResolvedValue('<html><head><title>Test</title></head><body><h1>Test</h1></body></html>'),
+        evaluate: vi.fn().mockResolvedValueOnce({
           titleLength: 4,
           descriptionLength: 0,
           h1Count: 1,
@@ -678,7 +677,7 @@ describe('SEO Protocols Safe Tests - Guaranteed 100% Coverage', () => {
           .mockResolvedValue([])
       } as any;
 
-      (mockPage.waitForTimeout as jest.Mock) = jest.fn().mockResolvedValue(undefined);
+      (mockPage.waitForTimeout as jest.Mock) = vi.fn().mockResolvedValue(undefined);
 
       const result = await service.applyOptimizations({
         url: 'https://example.com/test',

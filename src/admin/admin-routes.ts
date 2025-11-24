@@ -19,6 +19,112 @@ import uaSimulator from './ua-simulator';
 const router: Router = express.Router();
 
 /**
+ * API: Login endpoint for form-based authentication
+ */
+router.post('/auth/login', express.json(), (req: Request, res: Response) => {
+  try {
+    const config = configManager.getConfig();
+    const { username, password } = req.body;
+
+    if (!config?.adminAuth?.enabled) {
+      return res.json({
+        success: true,
+        message: 'Authentication disabled',
+        token: 'no-auth-required'
+      });
+    }
+
+    // Frontend only sends password, so if username is not provided, use default
+    const effectiveUsername = username || config.adminAuth.username;
+
+    if (!password) {
+      return res.status(400).json({
+        success: false,
+        error: 'Password is required'
+      });
+    }
+
+    if (password === config.adminAuth.password) {
+      return res.json({
+        success: true,
+        message: 'Login successful',
+        token: Buffer.from(`${effectiveUsername}:${password}`).toString('base64')
+      });
+    } else {
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid password'
+      });
+    }
+  } catch (error) {
+    console.error('Login error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Login system error'
+    });
+  }
+});
+
+/**
+ * API: Check authentication status
+ */
+router.get('/auth/status', (req: Request, res: Response) => {
+  try {
+    const config = configManager.getConfig();
+    const authHeader = req.headers.authorization;
+
+    if (!config?.adminAuth?.enabled) {
+      return res.json({
+        success: true,
+        authenticated: true,
+        message: 'Authentication disabled'
+      });
+    }
+
+    if (!authHeader || !authHeader.startsWith('Basic ')) {
+      return res.json({
+        success: true,
+        authenticated: false,
+        message: 'No authentication provided'
+      });
+    }
+
+    try {
+      const base64Credentials = authHeader.slice(6);
+      const credentials = Buffer.from(base64Credentials, 'base64').toString('utf-8');
+      const [username, password] = credentials.split(':', 2);
+
+      if (username === config.adminAuth.username && password === config.adminAuth.password) {
+        return res.json({
+          success: true,
+          authenticated: true,
+          username: username,
+          message: 'Authenticated'
+        });
+      } else {
+        return res.json({
+          success: true,
+          authenticated: false,
+          message: 'Invalid credentials'
+        });
+      }
+    } catch (decodeError) {
+      return res.json({
+        success: true,
+        authenticated: false,
+        message: 'Invalid authentication format'
+      });
+    }
+  } catch (error) {
+    console.error('Auth status error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Authentication system error'
+    });
+  }
+});
+
+/**
  * Basic Authentication Middleware
  */
 function authenticate(req: Request, res: Response, next: NextFunction): void | Response {
@@ -69,7 +175,7 @@ function authenticate(req: Request, res: Response, next: NextFunction): void | R
 /**
  * API: Get statistics
  */
-router.get('/api/stats', authenticate, (_req: Request, res: Response) => {
+router.get('/stats', authenticate, (_req: Request, res: Response) => {
   const stats = metricsCollector.getStats();
   const botStats = metricsCollector.getBotStats();
   const cacheStats = cache.getStats();
@@ -90,7 +196,7 @@ router.get('/api/stats', authenticate, (_req: Request, res: Response) => {
 /**
  * API: Get recent traffic
  */
-router.get('/api/traffic', authenticate, (req: Request, res: Response) => {
+router.get('/traffic', authenticate, (req: Request, res: Response) => {
   const limit = parseInt(req.query['limit'] as string) || 100;
   const traffic = metricsCollector.getRecentTraffic(limit);
 
@@ -103,7 +209,7 @@ router.get('/api/traffic', authenticate, (req: Request, res: Response) => {
 /**
  * API: Get traffic timeline
  */
-router.get('/api/timeline', authenticate, (req: Request, res: Response) => {
+router.get('/timeline', authenticate, (req: Request, res: Response) => {
   const minutes = parseInt(req.query['minutes'] as string) || 60;
   const timeline = metricsCollector.getTrafficTimeline(minutes);
 
@@ -116,7 +222,7 @@ router.get('/api/timeline', authenticate, (req: Request, res: Response) => {
 /**
  * API: Get URL statistics
  */
-router.get('/api/urls', authenticate, (req: Request, res: Response) => {
+router.get('/urls', authenticate, (req: Request, res: Response) => {
   const limit = parseInt(req.query['limit'] as string) || 50;
   const urlStats = metricsCollector.getUrlStats(limit);
 
@@ -129,7 +235,7 @@ router.get('/api/urls', authenticate, (req: Request, res: Response) => {
 /**
  * API: Get cache list
  */
-router.get('/api/cache', authenticate, (_req: Request, res: Response) => {
+router.get('/cache', authenticate, (_req: Request, res: Response) => {
   const cacheData = cache.getAllEntries();
 
   res.json({
@@ -141,7 +247,7 @@ router.get('/api/cache', authenticate, (_req: Request, res: Response) => {
 /**
  * API: Clear cache
  */
-router.post('/api/cache/clear', authenticate, express.json(), (req: Request, res: Response) => {
+router.post('/cache/clear', authenticate, express.json(), (req: Request, res: Response) => {
   const { url } = req.body;
 
   if (url) {
@@ -163,7 +269,7 @@ router.post('/api/cache/clear', authenticate, express.json(), (req: Request, res
 /**
  * API: Get configuration
  */
-router.get('/api/config', authenticate, (_req: Request, res: Response) => {
+router.get('/config', authenticate, (_req: Request, res: Response) => {
   const config = configManager.getConfig();
 
   res.json({
@@ -175,7 +281,7 @@ router.get('/api/config', authenticate, (_req: Request, res: Response) => {
 /**
  * API: Update configuration
  */
-router.post('/api/config', authenticate, express.json(), async (req: Request, res: Response) => {
+router.post('/config', authenticate, express.json(), async (req: Request, res: Response) => {
   try {
     const updates = req.body;
     const newConfig = await configManager.updateConfig(updates);
@@ -264,7 +370,7 @@ router.delete(
 /**
  * API: Manage bot rules
  */
-router.post('/api/config/bot', authenticate, express.json(), async (req: Request, res: Response) => {
+router.post('/config/bot', authenticate, express.json(), async (req: Request, res: Response) => {
   try {
     const { botName, action } = req.body;
 
@@ -310,7 +416,7 @@ router.post('/api/config/bot', authenticate, express.json(), async (req: Request
 /**
  * API: Reset configuration to defaults
  */
-router.post('/api/config/reset', authenticate, async (_req: Request, res: Response) => {
+router.post('/config/reset', authenticate, async (_req: Request, res: Response) => {
   try {
     const config = await configManager.resetToDefaults();
 
@@ -330,7 +436,7 @@ router.post('/api/config/reset', authenticate, async (_req: Request, res: Respon
 /**
  * API: Reset metrics
  */
-router.post('/api/metrics/reset', authenticate, (_req: Request, res: Response) => {
+router.post('/metrics/reset', authenticate, (_req: Request, res: Response) => {
   metricsCollector.reset();
 
   res.json({
@@ -342,7 +448,7 @@ router.post('/api/metrics/reset', authenticate, (_req: Request, res: Response) =
 /**
  * API: Real-time updates (Server-Sent Events)
  */
-router.get('/api/stream', authenticate, (req: Request, res: Response) => {
+router.get('/stream', authenticate, (req: Request, res: Response) => {
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
@@ -371,7 +477,7 @@ router.get('/api/stream', authenticate, (req: Request, res: Response) => {
 /**
  * API: Get cache warmer stats
  */
-router.get('/api/warmer/stats', authenticate, (_req: Request, res: Response) => {
+router.get('/warmer/stats', authenticate, (_req: Request, res: Response) => {
   const stats = cacheWarmer.getStats();
   const estimatedTime = cacheWarmer.getEstimatedTime();
 
@@ -387,7 +493,7 @@ router.get('/api/warmer/stats', authenticate, (_req: Request, res: Response) => 
 /**
  * API: Add URLs to cache warmer
  */
-router.post('/api/warmer/add', authenticate, express.json(), async (req: Request, res: Response) => {
+router.post('/warmer/add', authenticate, express.json(), async (req: Request, res: Response) => {
   try {
     const { urls, priority = 'normal' } = req.body;
 
@@ -416,7 +522,7 @@ router.post('/api/warmer/add', authenticate, express.json(), async (req: Request
 /**
  * API: Parse and add sitemap URLs
  */
-router.post('/api/warmer/sitemap', authenticate, express.json(), async (req: Request, res: Response) => {
+router.post('/warmer/sitemap', authenticate, express.json(), async (req: Request, res: Response) => {
   try {
     const { sitemapUrl, priority = 'normal' } = req.body;
 
@@ -457,7 +563,7 @@ router.post('/api/warmer/sitemap', authenticate, express.json(), async (req: Req
 /**
  * API: Clear cache warmer queue
  */
-router.post('/api/warmer/clear', authenticate, (_req: Request, res: Response) => {
+router.post('/warmer/clear', authenticate, (_req: Request, res: Response) => {
   cacheWarmer.clearQueue();
 
   res.json({
@@ -469,7 +575,7 @@ router.post('/api/warmer/clear', authenticate, (_req: Request, res: Response) =>
 /**
  * API: Warm specific URL immediately
  */
-router.post('/api/warmer/warm', authenticate, express.json(), async (req: Request, res: Response) => {
+router.post('/warmer/warm', authenticate, express.json(), async (req: Request, res: Response) => {
   try {
     const { url } = req.body;
 
@@ -498,7 +604,7 @@ router.post('/api/warmer/warm', authenticate, express.json(), async (req: Reques
 /**
  * API: Capture snapshot
  */
-router.post('/api/snapshots/capture', authenticate, express.json(), async (req: Request, res: Response) => {
+router.post('/snapshots/capture', authenticate, express.json(), async (req: Request, res: Response) => {
   try {
     const { url, options = {} } = req.body;
 
@@ -526,7 +632,7 @@ router.post('/api/snapshots/capture', authenticate, express.json(), async (req: 
 /**
  * API: Get snapshot by ID
  */
-router.get('/api/snapshots/:id', authenticate, async (req: Request, res: Response) => {
+router.get('/snapshots/:id', authenticate, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const snapshot = await snapshotService.getSnapshot(id);
@@ -553,7 +659,7 @@ router.get('/api/snapshots/:id', authenticate, async (req: Request, res: Respons
 /**
  * API: Get all snapshots with pagination
  */
-router.get('/api/snapshots', authenticate, async (req: Request, res: Response) => {
+router.get('/snapshots', authenticate, async (req: Request, res: Response) => {
   try {
     const page = parseInt(req.query['page'] as string) || 1;
     const limit = parseInt(req.query['limit'] as string) || 20;
@@ -575,7 +681,7 @@ router.get('/api/snapshots', authenticate, async (req: Request, res: Response) =
 /**
  * API: Get snapshot history for URL
  */
-router.get('/api/snapshots/history/:url', authenticate, async (req: Request, res: Response) => {
+router.get('/snapshots/history/:url', authenticate, async (req: Request, res: Response) => {
   try {
     const { url } = req.params;
     const limit = parseInt(req.query['limit'] as string) || 10;
@@ -597,7 +703,7 @@ router.get('/api/snapshots/history/:url', authenticate, async (req: Request, res
 /**
  * API: Compare snapshots
  */
-router.post('/api/snapshots/compare', authenticate, express.json(), async (req: Request, res: Response) => {
+router.post('/snapshots/compare', authenticate, express.json(), async (req: Request, res: Response) => {
   try {
     const { beforeId, afterId } = req.body;
 
@@ -625,7 +731,7 @@ router.post('/api/snapshots/compare', authenticate, express.json(), async (req: 
 /**
  * API: Get diff result by ID
  */
-router.get('/api/snapshots/diff/:id', authenticate, async (req: Request, res: Response) => {
+router.get('/snapshots/diff/:id', authenticate, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const diff = await snapshotService.getDiff(id);
@@ -652,7 +758,7 @@ router.get('/api/snapshots/diff/:id', authenticate, async (req: Request, res: Re
 /**
  * API: Delete snapshot
  */
-router.delete('/api/snapshots/:id', authenticate, async (req: Request, res: Response) => {
+router.delete('/snapshots/:id', authenticate, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const deleted = await snapshotService.deleteSnapshot(id);
@@ -673,7 +779,7 @@ router.delete('/api/snapshots/:id', authenticate, async (req: Request, res: Resp
 /**
  * API: Get hotfix rules
  */
-router.get('/api/hotfix/rules', authenticate, (_req: Request, res: Response) => {
+router.get('/hotfix/rules', authenticate, (_req: Request, res: Response) => {
   try {
     const rules = hotfixEngine.getRules();
 
@@ -692,7 +798,7 @@ router.get('/api/hotfix/rules', authenticate, (_req: Request, res: Response) => 
 /**
  * API: Get hotfix stats
  */
-router.get('/api/hotfix/stats', authenticate, (_req: Request, res: Response) => {
+router.get('/hotfix/stats', authenticate, (_req: Request, res: Response) => {
   try {
     const stats = hotfixEngine.getStats();
 
@@ -711,7 +817,7 @@ router.get('/api/hotfix/stats', authenticate, (_req: Request, res: Response) => 
 /**
  * API: Create hotfix rule
  */
-router.post('/api/hotfix/rules', authenticate, express.json(), async (req: Request, res: Response) => {
+router.post('/hotfix/rules', authenticate, express.json(), async (req: Request, res: Response) => {
   try {
     const ruleData = req.body;
 
@@ -771,7 +877,7 @@ router.put('/api/hotfix/rules/:id', authenticate, express.json(), async (req: Re
 /**
  * API: Delete hotfix rule
  */
-router.delete('/api/hotfix/rules/:id', authenticate, async (req: Request, res: Response) => {
+router.delete('/hotfix/rules/:id', authenticate, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const deleted = await hotfixEngine.deleteRule(id);
@@ -792,7 +898,7 @@ router.delete('/api/hotfix/rules/:id', authenticate, async (req: Request, res: R
 /**
  * API: Toggle hotfix rule
  */
-router.post('/api/hotfix/rules/:id/toggle', authenticate, async (req: Request, res: Response) => {
+router.post('/hotfix/rules/:id/toggle', authenticate, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const toggled = await hotfixEngine.toggleRule(id);
@@ -819,7 +925,7 @@ router.post('/api/hotfix/rules/:id/toggle', authenticate, async (req: Request, r
 /**
  * API: Test hotfix on URL
  */
-router.post('/api/hotfix/test', authenticate, express.json(), async (req: Request, res: Response) => {
+router.post('/hotfix/test', authenticate, express.json(), async (req: Request, res: Response) => {
   try {
     const { url } = req.body;
 
@@ -847,7 +953,7 @@ router.post('/api/hotfix/test', authenticate, express.json(), async (req: Reques
 /**
  * API: Get hotfix test history
  */
-router.get('/api/hotfix/tests', authenticate, (req: Request, res: Response) => {
+router.get('/hotfix/tests', authenticate, (req: Request, res: Response) => {
   try {
     const limit = parseInt(req.query['limit'] as string) || 20;
     const history = hotfixEngine.getTestHistory(limit);
@@ -867,7 +973,7 @@ router.get('/api/hotfix/tests', authenticate, (req: Request, res: Response) => {
 /**
  * API: Get forensics stats
  */
-router.get('/api/forensics/stats', authenticate, async (_req: Request, res: Response) => {
+router.get('/forensics/stats', authenticate, async (_req: Request, res: Response) => {
   try {
     const stats = await forensicsCollector.getStats();
 
@@ -886,7 +992,7 @@ router.get('/api/forensics/stats', authenticate, async (_req: Request, res: Resp
 /**
  * API: Get forensics errors
  */
-router.get('/api/forensics/errors', authenticate, async (req: Request, res: Response) => {
+router.get('/forensics/errors', authenticate, async (req: Request, res: Response) => {
   try {
     const page = parseInt(req.query['page'] as string) || 1;
     const limit = parseInt(req.query['limit'] as string) || 50;
@@ -908,7 +1014,7 @@ router.get('/api/forensics/errors', authenticate, async (req: Request, res: Resp
 /**
  * API: Get specific error
  */
-router.get('/api/forensics/errors/:id', authenticate, async (req: Request, res: Response) => {
+router.get('/forensics/errors/:id', authenticate, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const error = await forensicsCollector.getError(id);
@@ -935,7 +1041,7 @@ router.get('/api/forensics/errors/:id', authenticate, async (req: Request, res: 
 /**
  * API: Get errors by URL
  */
-router.get('/api/forensics/errors/by-url/:url', authenticate, async (req: Request, res: Response) => {
+router.get('/forensics/errors/by-url/:url', authenticate, async (req: Request, res: Response) => {
   try {
     const { url } = req.params;
     const limit = parseInt(req.query['limit'] as string) || 20;
@@ -957,7 +1063,7 @@ router.get('/api/forensics/errors/by-url/:url', authenticate, async (req: Reques
 /**
  * API: Delete error
  */
-router.delete('/api/forensics/errors/:id', authenticate, async (req: Request, res: Response) => {
+router.delete('/forensics/errors/:id', authenticate, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const deleted = await forensicsCollector.deleteError(id);
@@ -978,7 +1084,7 @@ router.delete('/api/forensics/errors/:id', authenticate, async (req: Request, re
 /**
  * API: Clear old errors
  */
-router.post('/api/forensics/cleanup', authenticate, express.json(), async (req: Request, res: Response) => {
+router.post('/forensics/cleanup', authenticate, express.json(), async (req: Request, res: Response) => {
   try {
     const { daysToKeep = 30 } = req.body;
     const deleted = await forensicsCollector.clearOldErrors(daysToKeep);
@@ -999,7 +1105,7 @@ router.post('/api/forensics/cleanup', authenticate, express.json(), async (req: 
 /**
  * API: Get blocking rules
  */
-router.get('/api/blocking/rules', authenticate, (_req: Request, res: Response) => {
+router.get('/blocking/rules', authenticate, (_req: Request, res: Response) => {
   try {
     const rules = blockingManager.getRules();
 
@@ -1018,7 +1124,7 @@ router.get('/api/blocking/rules', authenticate, (_req: Request, res: Response) =
 /**
  * API: Get blocking stats
  */
-router.get('/api/blocking/stats', authenticate, (_req: Request, res: Response) => {
+router.get('/blocking/stats', authenticate, (_req: Request, res: Response) => {
   try {
     const stats = blockingManager.getStats();
 
@@ -1037,7 +1143,7 @@ router.get('/api/blocking/stats', authenticate, (_req: Request, res: Response) =
 /**
  * API: Create blocking rule
  */
-router.post('/api/blocking/rules', authenticate, express.json(), async (req: Request, res: Response) => {
+router.post('/blocking/rules', authenticate, express.json(), async (req: Request, res: Response) => {
   try {
     const ruleData = req.body;
 
@@ -1067,7 +1173,7 @@ router.post('/api/blocking/rules', authenticate, express.json(), async (req: Req
 /**
  * API: Test blocking rule
  */
-router.post('/api/blocking/test', authenticate, express.json(), async (req: Request, res: Response) => {
+router.post('/blocking/test', authenticate, express.json(), async (req: Request, res: Response) => {
   try {
     const { url, userAgent, headers } = req.body;
 
@@ -1117,7 +1223,7 @@ router.put('/api/blocking/rules/:id', authenticate, express.json(), async (req: 
 /**
  * API: Delete blocking rule
  */
-router.delete('/api/blocking/rules/:id', authenticate, async (req: Request, res: Response) => {
+router.delete('/blocking/rules/:id', authenticate, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
@@ -1138,7 +1244,7 @@ router.delete('/api/blocking/rules/:id', authenticate, async (req: Request, res:
 /**
  * API: Toggle blocking rule
  */
-router.post('/api/blocking/rules/:id/toggle', authenticate, async (req: Request, res: Response) => {
+router.post('/blocking/rules/:id/toggle', authenticate, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
@@ -1159,7 +1265,7 @@ router.post('/api/blocking/rules/:id/toggle', authenticate, async (req: Request,
 /**
  * API: Get blocking rule by ID
  */
-router.get('/api/blocking/rules/:id', authenticate, async (req: Request, res: Response) => {
+router.get('/blocking/rules/:id', authenticate, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
@@ -1187,7 +1293,7 @@ router.get('/api/blocking/rules/:id', authenticate, async (req: Request, res: Re
 /**
  * API: Get user agent templates
  */
-router.get('/api/simulate/user-agents', authenticate, (_req: Request, res: Response) => {
+router.get('/simulate/user-agents', authenticate, (_req: Request, res: Response) => {
   try {
     const userAgents = uaSimulator.getUserAgents();
 
@@ -1206,7 +1312,7 @@ router.get('/api/simulate/user-agents', authenticate, (_req: Request, res: Respo
 /**
  * API: Start simulation
  */
-router.post('/api/simulate/start', authenticate, express.json(), async (req: Request, res: Response) => {
+router.post('/simulate/start', authenticate, express.json(), async (req: Request, res: Response) => {
   try {
     const { url, userAgentId, options = {} } = req.body;
 
@@ -1243,7 +1349,7 @@ router.post('/api/simulate/start', authenticate, express.json(), async (req: Req
 /**
  * API: Get simulation by ID
  */
-router.get('/api/simulate/:id', authenticate, (req: Request, res: Response) => {
+router.get('/simulate/:id', authenticate, (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const simulation = uaSimulator.getSimulation(id);
@@ -1270,7 +1376,7 @@ router.get('/api/simulate/:id', authenticate, (req: Request, res: Response) => {
 /**
  * API: Get simulation history
  */
-router.get('/api/simulate/history', authenticate, (req: Request, res: Response) => {
+router.get('/simulate/history', authenticate, (req: Request, res: Response) => {
   try {
     const limit = parseInt(req.query['limit'] as string) || 20;
     const history = uaSimulator.getSimulationHistory(limit);
@@ -1290,7 +1396,7 @@ router.get('/api/simulate/history', authenticate, (req: Request, res: Response) 
 /**
  * API: Get active simulations
  */
-router.get('/api/simulate/active', authenticate, (_req: Request, res: Response) => {
+router.get('/simulate/active', authenticate, (_req: Request, res: Response) => {
   try {
     const active = uaSimulator.getActiveSimulations();
 
@@ -1309,7 +1415,7 @@ router.get('/api/simulate/active', authenticate, (_req: Request, res: Response) 
 /**
  * API: Get simulation stats
  */
-router.get('/api/simulate/stats', authenticate, (_req: Request, res: Response) => {
+router.get('/simulate/stats', authenticate, (_req: Request, res: Response) => {
   try {
     const stats = uaSimulator.getStats();
 
@@ -1328,7 +1434,7 @@ router.get('/api/simulate/stats', authenticate, (_req: Request, res: Response) =
 /**
  * API: Compare simulations
  */
-router.post('/api/simulate/compare', authenticate, express.json(), async (req: Request, res: Response) => {
+router.post('/simulate/compare', authenticate, express.json(), async (req: Request, res: Response) => {
   try {
     const { simulationId1, simulationId2 } = req.body;
 
@@ -1373,7 +1479,7 @@ router.post('/api/simulate/compare', authenticate, express.json(), async (req: R
 /**
  * API: Cancel simulation
  */
-router.post('/api/simulate/:id/cancel', authenticate, async (req: Request, res: Response) => {
+router.post('/simulate/:id/cancel', authenticate, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const cancelled = await uaSimulator.cancelSimulation(id);

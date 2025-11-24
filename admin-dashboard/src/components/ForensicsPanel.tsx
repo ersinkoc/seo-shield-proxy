@@ -108,7 +108,7 @@ const ForensicsPanel = () => {
 
   const fetchErrors = async () => {
     try {
-      const response = await fetch(`/api/forensics/errors?page=${page}&limit=20`, {
+      const response = await fetch(`/shieldadmin/shieldapi/forensics/errors?page=${page}&limit=20`, {
         headers: { 'Authorization': `Basic ${btoa(localStorage.getItem('adminCredentials') || '')}` },
       });
       const result = await response.json();
@@ -123,7 +123,7 @@ const ForensicsPanel = () => {
 
   const fetchErrorDetails = async (id: string) => {
     try {
-      const response = await fetch(`/api/forensics/errors/${id}`, {
+      const response = await fetch(`/shieldadmin/shieldapi/forensics/errors/${id}`, {
         headers: { 'Authorization': `Basic ${btoa(localStorage.getItem('adminCredentials') || '')}` },
       });
       const result = await response.json();
@@ -139,7 +139,7 @@ const ForensicsPanel = () => {
     if (!confirm('Are you sure you want to delete this error record?')) return;
 
     try {
-      const response = await fetch(`/api/forensics/errors/${id}`, {
+      const response = await fetch(`/shieldadmin/shieldapi/forensics/errors/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Basic ${btoa(localStorage.getItem('adminCredentials') || '')}` },
       });

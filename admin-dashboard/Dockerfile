@@ -5,17 +5,14 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci --only=production
+# Install ALL dependencies (including devDependencies)
+RUN npm ci
 
 # Copy source code
 COPY . .
 
-# Build the app
-RUN npm run build
-
 # Expose port
 EXPOSE 3001
 
-# Start the preview server
-CMD ["npm", "run", "preview", "--", "--host", "0.0.0.0", "--port", "3001"]
+# Start the development server with proper host binding
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "3001"]

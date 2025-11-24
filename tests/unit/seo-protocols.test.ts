@@ -6,6 +6,7 @@ import { ClusterManager } from '../../src/admin/cluster-manager';
 import { ShadowDOMExtractor } from '../../src/admin/shadow-dom-extractor';
 import { CircuitBreaker, CircuitBreakerManager } from '../../src/admin/circuit-breaker';
 import { SEOProtocolsService } from '../../src/admin/seo-protocols-service';
+import { vi } from 'vitest';
 
 // Mock console methods to avoid test output pollution
 const originalConsoleLog = console.log;
@@ -13,9 +14,9 @@ const originalConsoleWarn = console.warn;
 const originalConsoleError = console.error;
 
 beforeAll(() => {
-  console.log = jest.fn();
-  console.warn = jest.fn();
-  console.error = jest.fn();
+  console.log = vi.fn();
+  console.warn = vi.fn();
+  console.error = vi.fn();
 });
 
 afterAll(() => {
@@ -47,7 +48,7 @@ describe('SEO Protocols Unit Tests', () => {
     });
 
     afterEach(() => {
-      jest.clearAllMocks();
+      vi.clearAllMocks();
     });
 
     it('should be initialized with default configuration', () => {
@@ -66,7 +67,7 @@ describe('SEO Protocols Unit Tests', () => {
 
     it('should validate page title length - too short', async () => {
       const mockPage = {
-        evaluate: jest.fn()
+        evaluate: vi.fn()
           .mockResolvedValueOnce({ titleLength: 25, descriptionLength: 150, h1Count: 1, wordCount: 500, bodyLength: 1000 })
           .mockResolvedValueOnce([])
           .mockResolvedValueOnce(false)
@@ -87,7 +88,7 @@ describe('SEO Protocols Unit Tests', () => {
 
     it('should validate page title length - perfect', async () => {
       const mockPage = {
-        evaluate: jest.fn()
+        evaluate: vi.fn()
           .mockResolvedValueOnce({ titleLength: 50, descriptionLength: 150, h1Count: 1, wordCount: 500, bodyLength: 1000 })
           .mockResolvedValueOnce([])
           .mockResolvedValueOnce(false)
@@ -107,7 +108,7 @@ describe('SEO Protocols Unit Tests', () => {
 
     it('should validate page title length - too long', async () => {
       const mockPage = {
-        evaluate: jest.fn()
+        evaluate: vi.fn()
           .mockResolvedValueOnce({ titleLength: 80, descriptionLength: 150, h1Count: 1, wordCount: 500, bodyLength: 1000 })
           .mockResolvedValueOnce([])
           .mockResolvedValueOnce(false)
@@ -127,7 +128,7 @@ describe('SEO Protocols Unit Tests', () => {
 
     it('should detect missing meta description', async () => {
       const mockPage = {
-        evaluate: jest.fn()
+        evaluate: vi.fn()
           .mockResolvedValueOnce({ titleLength: 50, descriptionLength: 0, h1Count: 1, wordCount: 500, bodyLength: 1000 })
           .mockResolvedValueOnce([])
           .mockResolvedValueOnce(false)
@@ -148,7 +149,7 @@ describe('SEO Protocols Unit Tests', () => {
 
     it('should detect missing H1 tag', async () => {
       const mockPage = {
-        evaluate: jest.fn()
+        evaluate: vi.fn()
           .mockResolvedValueOnce({ titleLength: 50, descriptionLength: 150, h1Count: 0, wordCount: 500, bodyLength: 1000 })
           .mockResolvedValueOnce([])
           .mockResolvedValueOnce(false)
@@ -169,7 +170,7 @@ describe('SEO Protocols Unit Tests', () => {
 
     it('should detect multiple H1 tags', async () => {
       const mockPage = {
-        evaluate: jest.fn()
+        evaluate: vi.fn()
           .mockResolvedValueOnce({ titleLength: 50, descriptionLength: 150, h1Count: 3, wordCount: 500, bodyLength: 1000 })
           .mockResolvedValueOnce([])
           .mockResolvedValueOnce(false)
@@ -189,7 +190,7 @@ describe('SEO Protocols Unit Tests', () => {
 
     it('should detect insufficient body content', async () => {
       const mockPage = {
-        evaluate: jest.fn()
+        evaluate: vi.fn()
           .mockResolvedValueOnce({ titleLength: 50, descriptionLength: 150, h1Count: 1, wordCount: 100, bodyLength: 300 })
           .mockResolvedValueOnce([])
           .mockResolvedValueOnce(false)
@@ -210,7 +211,7 @@ describe('SEO Protocols Unit Tests', () => {
 
     it('should calculate high health score for perfect page', async () => {
       const mockPage = {
-        evaluate: jest.fn()
+        evaluate: vi.fn()
           .mockResolvedValueOnce({ titleLength: 45, descriptionLength: 155, h1Count: 1, wordCount: 800, bodyLength: 2000 })
           .mockResolvedValueOnce([])
           .mockResolvedValueOnce(false)
@@ -230,7 +231,7 @@ describe('SEO Protocols Unit Tests', () => {
 
     it('should generate recommendations for page issues', async () => {
       const mockPage = {
-        evaluate: jest.fn()
+        evaluate: vi.fn()
           .mockResolvedValueOnce({ titleLength: 20, descriptionLength: 0, h1Count: 0, wordCount: 100, bodyLength: 200 })
           .mockResolvedValueOnce([])
           .mockResolvedValueOnce(false)
@@ -249,7 +250,7 @@ describe('SEO Protocols Unit Tests', () => {
 
     it('should handle page evaluation errors gracefully', async () => {
       const mockPage = {
-        evaluate: jest.fn().mockRejectedValue(new Error('Evaluation failed'))
+        evaluate: vi.fn().mockRejectedValue(new Error('Evaluation failed'))
       } as any;
 
       const result = await manager.checkPageHealth(mockPage, 'http://example.com');
@@ -266,7 +267,7 @@ describe('SEO Protocols Unit Tests', () => {
 
     it('should validate critical selectors presence', async () => {
       const mockPage = {
-        evaluate: jest.fn()
+        evaluate: vi.fn()
           .mockResolvedValueOnce({ titleLength: 50, descriptionLength: 150, h1Count: 1, wordCount: 500, bodyLength: 1000 })
           .mockResolvedValueOnce(true) // title found
           .mockResolvedValueOnce(true) // meta description found
@@ -324,7 +325,7 @@ describe('SEO Protocols Unit Tests', () => {
     });
 
     afterEach(() => {
-      jest.clearAllMocks();
+      vi.clearAllMocks();
     });
 
     it('should be initialized with default configuration', () => {
@@ -351,7 +352,7 @@ describe('SEO Protocols Unit Tests', () => {
 
     it('should execute virtual scrolling successfully', async () => {
       const mockPage = {
-        evaluate: jest.fn()
+        evaluate: vi.fn()
           .mockResolvedValueOnce({
             finalHeight: 2000,
             scrollSteps: 5,
@@ -374,7 +375,7 @@ describe('SEO Protocols Unit Tests', () => {
           })
       } as any;
 
-      (mockPage.waitForTimeout as jest.Mock) = jest.fn().mockResolvedValue(undefined);
+      (mockPage.waitForTimeout as jest.Mock) = vi.fn().mockResolvedValue(undefined);
 
       const result = await manager.triggerVirtualScroll(mockPage, 'http://example.com');
 
@@ -395,7 +396,7 @@ describe('SEO Protocols Unit Tests', () => {
 
     it('should handle scroll execution errors', async () => {
       const mockPage = {
-        evaluate: jest.fn().mockRejectedValue(new Error('Scroll failed'))
+        evaluate: vi.fn().mockRejectedValue(new Error('Scroll failed'))
       } as any;
 
       const result = await manager.triggerVirtualScroll(mockPage, 'http://example.com');
@@ -408,7 +409,7 @@ describe('SEO Protocols Unit Tests', () => {
 
     it('should calculate completion rate correctly', async () => {
       const mockPage = {
-        evaluate: jest.fn()
+        evaluate: vi.fn()
           .mockResolvedValueOnce({
             finalHeight: 5000,
             scrollSteps: 8,
@@ -428,7 +429,7 @@ describe('SEO Protocols Unit Tests', () => {
           })
       } as any;
 
-      (mockPage.waitForTimeout as jest.Mock) = jest.fn().mockResolvedValue(undefined);
+      (mockPage.waitForTimeout as jest.Mock) = vi.fn().mockResolvedValue(undefined);
 
       const result = await manager.triggerVirtualScroll(mockPage, 'http://example.com');
 
@@ -442,7 +443,7 @@ describe('SEO Protocols Unit Tests', () => {
       const lowPerformManager = new VirtualScrollManager(config);
 
       const mockPage = {
-        evaluate: jest.fn()
+        evaluate: vi.fn()
           .mockResolvedValueOnce({
             finalHeight: 1000,
             scrollSteps: 2,
@@ -462,7 +463,7 @@ describe('SEO Protocols Unit Tests', () => {
           })
       } as any;
 
-      (mockPage.waitForTimeout as jest.Mock) = jest.fn().mockResolvedValue(undefined);
+      (mockPage.waitForTimeout as jest.Mock) = vi.fn().mockResolvedValue(undefined);
 
       const result = await lowPerformManager.triggerVirtualScroll(mockPage, 'http://example.com');
 
@@ -502,7 +503,7 @@ describe('SEO Protocols Unit Tests', () => {
     });
 
     afterEach(() => {
-      jest.clearAllMocks();
+      vi.clearAllMocks();
     });
 
     it('should be initialized with default configuration', () => {
@@ -657,7 +658,7 @@ describe('SEO Protocols Unit Tests', () => {
     });
 
     afterEach(() => {
-      jest.clearAllMocks();
+      vi.clearAllMocks();
     });
 
     it('should create ETag service with configuration', () => {
@@ -722,7 +723,7 @@ describe('SEO Protocols Unit Tests', () => {
     });
 
     afterEach(() => {
-      jest.clearAllMocks();
+      vi.clearAllMocks();
     });
 
     it('should be initialized with default configuration', () => {
@@ -738,7 +739,7 @@ describe('SEO Protocols Unit Tests', () => {
       const disabledExtractor = new ShadowDOMExtractor(config);
 
       const mockPage = {
-        content: jest.fn().mockResolvedValue('<html><body>No shadow DOM</body></html>')
+        content: vi.fn().mockResolvedValue('<html><body>No shadow DOM</body></html>')
       } as any;
 
       const result = await disabledExtractor.extractCompleteContent(mockPage);
@@ -750,8 +751,8 @@ describe('SEO Protocols Unit Tests', () => {
 
     it('should extract content from page with evaluation script', async () => {
       const mockPage = {
-        content: jest.fn().mockResolvedValue('<html><body>Content</body></html>'),
-        evaluate: jest.fn().mockImplementation(async () => {
+        content: vi.fn().mockResolvedValue('<html><body>Content</body></html>'),
+        evaluate: vi.fn().mockImplementation(async () => {
           // Add small delay to ensure extraction time > 0
           await new Promise(resolve => setTimeout(resolve, 5));
           return {
@@ -778,8 +779,8 @@ describe('SEO Protocols Unit Tests', () => {
 
     it('should handle extraction errors gracefully', async () => {
       const mockPage = {
-        content: jest.fn().mockResolvedValue('<html></html>'),
-        evaluate: jest.fn().mockRejectedValue(new Error('Extraction failed'))
+        content: vi.fn().mockResolvedValue('<html></html>'),
+        evaluate: vi.fn().mockRejectedValue(new Error('Extraction failed'))
       } as any;
 
       const result = await extractor.extractCompleteContent(mockPage);
@@ -792,21 +793,21 @@ describe('SEO Protocols Unit Tests', () => {
 
     it('should check for shadow DOM usage', async () => {
       const mockPage = {
-        evaluate: jest.fn().mockResolvedValue(false)
+        evaluate: vi.fn().mockResolvedValue(false)
       } as any;
 
       const hasShadow = await extractor.hasShadowDOM(mockPage);
       expect(hasShadow).toBe(false);
 
       // Test with shadow DOM present
-      mockPage.evaluate = jest.fn().mockResolvedValue(true);
+      mockPage.evaluate = vi.fn().mockResolvedValue(true);
       const hasShadowTrue = await extractor.hasShadowDOM(mockPage);
       expect(hasShadowTrue).toBe(true);
     });
 
     it('should get shadow DOM statistics', async () => {
       const mockPage = {
-        evaluate: jest.fn().mockResolvedValue({
+        evaluate: vi.fn().mockResolvedValue({
           totalElements: 50,
           shadowHosts: 3,
           openShadowRoots: 2,
@@ -826,7 +827,7 @@ describe('SEO Protocols Unit Tests', () => {
 
     it('should extract content from custom elements', async () => {
       const mockPage = {
-        evaluate: jest.fn().mockResolvedValue(['Slot content 1', 'Slot content 2'])
+        evaluate: vi.fn().mockResolvedValue(['Slot content 1', 'Slot content 2'])
       } as any;
 
       const results = await extractor.extractCustomElementContent(mockPage, 'lit-element');
@@ -836,7 +837,7 @@ describe('SEO Protocols Unit Tests', () => {
 
     it('should get CSS variables from shadow DOM', async () => {
       const mockPage = {
-        evaluate: jest.fn().mockResolvedValue({
+        evaluate: vi.fn().mockResolvedValue({
           '--primary-color': '#007bff',
           '--font-size': '16px',
           '--padding': '10px'
@@ -877,7 +878,7 @@ describe('SEO Protocols Unit Tests', () => {
     });
 
     afterEach(() => {
-      jest.clearAllMocks();
+      vi.clearAllMocks();
     });
 
     it('should be initialized with default configuration', () => {
@@ -889,7 +890,7 @@ describe('SEO Protocols Unit Tests', () => {
     });
 
     it('should execute successful operations', async () => {
-      const operation = jest.fn().mockResolvedValue('success');
+      const operation = vi.fn().mockResolvedValue('success');
       const result = await circuitBreaker.execute(operation);
 
       expect(result.success).toBe(true);
@@ -900,7 +901,7 @@ describe('SEO Protocols Unit Tests', () => {
     });
 
     it('should handle operation failures', async () => {
-      const operation = jest.fn().mockRejectedValue(new Error('Test error'));
+      const operation = vi.fn().mockRejectedValue(new Error('Test error'));
       const result = await circuitBreaker.execute(operation);
 
       expect(result.success).toBe(false);
@@ -910,8 +911,8 @@ describe('SEO Protocols Unit Tests', () => {
     });
 
     it('should use fallback when provided', async () => {
-      const operation = jest.fn().mockRejectedValue(new Error('Test error'));
-      const fallback = jest.fn().mockResolvedValue('fallback result');
+      const operation = vi.fn().mockRejectedValue(new Error('Test error'));
+      const fallback = vi.fn().mockResolvedValue('fallback result');
 
       const result = await circuitBreaker.execute(operation, fallback);
 
@@ -921,7 +922,7 @@ describe('SEO Protocols Unit Tests', () => {
     });
 
     it('should transition to open state after threshold failures', async () => {
-      const operation = jest.fn().mockRejectedValue(new Error('Test error'));
+      const operation = vi.fn().mockRejectedValue(new Error('Test error'));
 
       // First failure
       await circuitBreaker.execute(operation);
@@ -937,7 +938,7 @@ describe('SEO Protocols Unit Tests', () => {
     });
 
     it('should handle operation timeout', async () => {
-      const operation = jest.fn().mockImplementation(() => {
+      const operation = vi.fn().mockImplementation(() => {
         return new Promise(resolve => setTimeout(resolve, 10000)); // 10 second delay
       });
 
@@ -967,7 +968,7 @@ describe('SEO Protocols Unit Tests', () => {
       // Force circuit open
       circuitBreaker.forceState('OPEN');
 
-      const operation = jest.fn().mockResolvedValue('success');
+      const operation = vi.fn().mockResolvedValue('success');
       const result = await circuitBreaker.execute(operation);
 
       expect(result.success).toBe(false);
@@ -1009,7 +1010,7 @@ describe('SEO Protocols Unit Tests', () => {
     });
 
     afterEach(() => {
-      jest.clearAllMocks();
+      vi.clearAllMocks();
     });
 
     it('should create and manage multiple circuits', () => {
@@ -1107,7 +1108,7 @@ describe('SEO Protocols Unit Tests', () => {
     });
 
     afterEach(() => {
-      jest.clearAllMocks();
+      vi.clearAllMocks();
     });
 
     it('should be initialized with configuration', () => {
@@ -1160,7 +1161,7 @@ describe('SEO Protocols Unit Tests', () => {
     });
 
     afterEach(() => {
-      jest.clearAllMocks();
+      vi.clearAllMocks();
     });
 
     it('should be initialized with default configuration', () => {
@@ -1210,8 +1211,8 @@ describe('SEO Protocols Unit Tests', () => {
 
     it('should apply optimizations', async () => {
       const mockPage = {
-        content: jest.fn().mockResolvedValue('<html><body>Optimized content</body></html>'),
-        evaluate: jest.fn().mockResolvedValue({})
+        content: vi.fn().mockResolvedValue('<html><body>Optimized content</body></html>'),
+        evaluate: vi.fn().mockResolvedValue({})
       } as any;
 
       const result = await service.applyOptimizations({
@@ -1228,8 +1229,8 @@ describe('SEO Protocols Unit Tests', () => {
 
     it('should handle optimization errors gracefully', async () => {
       const mockPage = {
-        content: jest.fn().mockRejectedValue(new Error('Page error')),
-        evaluate: jest.fn().mockRejectedValue(new Error('Eval error'))
+        content: vi.fn().mockRejectedValue(new Error('Page error')),
+        evaluate: vi.fn().mockRejectedValue(new Error('Eval error'))
       } as any;
 
       const result = await service.applyOptimizations({
@@ -1330,8 +1331,8 @@ describe('SEO Protocols Unit Tests', () => {
       await service.initialize();
 
       const mockPage = {
-        content: jest.fn().mockResolvedValue('<html><head><title>Test Page</title><meta name="description" content="Test description"></head><body><h1>Main Heading</h1><p>Test content with sufficient length to meet minimum requirements and ensure good health score</p></body></html>'),
-        evaluate: jest.fn()
+        content: vi.fn().mockResolvedValue('<html><head><title>Test Page</title><meta name="description" content="Test description"></head><body><h1>Main Heading</h1><p>Test content with sufficient length to meet minimum requirements and ensure good health score</p></body></html>'),
+        evaluate: vi.fn()
           .mockResolvedValueOnce({ titleLength: 10, descriptionLength: 19, h1Count: 1, wordCount: 20, bodyLength: 150 })
           .mockResolvedValueOnce([])
           .mockResolvedValueOnce(false)
@@ -1364,7 +1365,7 @@ describe('SEO Protocols Unit Tests', () => {
           })
       } as any;
 
-      (mockPage.waitForTimeout as jest.Mock) = jest.fn().mockResolvedValue(undefined);
+      (mockPage.waitForTimeout as jest.Mock) = vi.fn().mockResolvedValue(undefined);
 
       const result = await service.applyOptimizations({
         url: 'https://example.com/test',

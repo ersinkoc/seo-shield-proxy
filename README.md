@@ -41,34 +41,40 @@ Production-ready Node.js reverse proxy that transforms Single Page Applications 
 
 ### 🚀 **Quick Start - Currently Running**
 
-Both servers are **live and ready to test**:
+All services are **live and ready to test** with ultra-clean architecture:
 
 ```bash
-# ✅ Demo SPA (Direct)
-http://localhost:3000
+# ✅ Main Proxy Server (Port 8080)
+# Pure proxy with only /health endpoint
+http://localhost:8080/health
 
-# ✅ SEO Shield Proxy (with SSR)
-http://localhost:8000
+# ✅ API Server (Port 8190)
+# Admin API endpoints at /shieldapi/*
+http://localhost:8190/shieldapi/stats
 
-# ✅ Admin Dashboard
-http://localhost:8000/admin
-# Login: admin / seo-shield-2024
+# ✅ Admin Dashboard (Port 3001)
+# React admin interface
+http://localhost:3001
+# Login: admin / seo-shield-2025
 ```
 
 ### 🧪 **Quick Testing Commands**
 
 ```bash
-# Bot request (gets SSR rendered HTML)
-curl -A "Googlebot" http://localhost:8000/
+# Bot request (gets SSR rendered HTML) - Main Proxy
+curl -A "Googlebot" http://localhost:8080/
 
-# Human request (gets proxied to SPA)
-curl http://localhost:8000/
+# Human request (gets transparently proxied) - Main Proxy
+curl http://localhost:8080/
 
-# Debug mode (preview bot-rendered HTML as human)
-curl http://localhost:8000/?_render=debug
+# Health check - Main Proxy (only route besides proxy)
+curl http://localhost:8080/health
 
-# Admin panel (with real-time monitoring)
-open http://localhost:8000/admin
+# Admin API stats - API Server
+curl http://localhost:8190/shieldapi/stats
+
+# Admin dashboard (React interface)
+open http://localhost:3001
 ```
 
 ## 🚀 Quick Start
@@ -95,51 +101,61 @@ See [START.md](START.md) for detailed manual setup.
 
 ## 📊 Access Points
 
-- **Demo SPA:** http://localhost:3000
-- **SEO Proxy:** http://localhost:8080
-- **Admin Dashboard:** http://localhost:8080/admin or http://localhost:3001
+- **Main Proxy (Port 8080):** http://localhost:8080
+  - Pure proxy with transparent forwarding
+  - Only `/health` endpoint (direct response)
+  - All other requests transparently proxied to target
+- **API Server (Port 8190):** http://localhost:8190
+  - Admin API endpoints at `/shieldapi/*`
+  - Rate limiting and authentication
+- **Admin Dashboard (Port 3001):** http://localhost:3001
+  - React admin interface
+  - Real-time monitoring and management
 
 ## 🎯 Key Features
 
-### 🔧 Core Proxy
-- Bot detection via `isbot`
-- SSR with Puppeteer for bots
-- Transparent proxy for humans
-- Smart caching with TTL
+### 🔧 Core Proxy (Port 8080)
+- **Ultra-clean architecture** - Pure proxy only
+- Bot detection via `isbot` with SSR for bots
+- Transparent proxy for humans (no header manipulation)
+- Smart caching with TTL and SWR strategy
 - Pattern-based cache rules
 - Meta tag cache control
-- **Debug mode** - Preview bot-rendered HTML with `?_render=debug`
+- **Only `/health` endpoint** - All other routes transparently proxied
 
-### 📊 Admin Dashboard
+### 📊 API Server (Port 8190)
+- Admin API endpoints at `/shieldapi/*`
+- Multi-tier rate limiting and authentication
 - Real-time WebSocket updates
 - Traffic analytics & charts
 - Bot type breakdown (pie chart)
 - Cache management UI
 - Memory monitoring
-- Configuration viewer
 
-### 🎨 Demo SPA
-- 8 pages with proper SEO
-- Blog with dynamic routes
-- Products catalog
-- No-cache demo page
-- Contact forms
-- 404 handling
+### 🎨 Admin Dashboard (Port 3001)
+- React admin interface with TypeScript
+- Real-time WebSocket integration
+- Comprehensive traffic analytics
+- Cache management and configuration
+- System health monitoring
 
 ## 🧪 Quick Test
 
 ```bash
-# Bot request (gets SSR)
+# Bot request (gets SSR) - Main Proxy
 curl -A "Googlebot" http://localhost:8080/
 
-# Human request (gets proxied)
+# Human request (gets transparently proxied) - Main Proxy
 curl http://localhost:8080/
 
-# Debug mode (preview bot HTML as human)
-curl http://localhost:8080/?_render=debug
+# Health check (only direct endpoint) - Main Proxy
+curl http://localhost:8080/health
 
-# View in browser
-open http://localhost:8080/admin
+# API stats - API Server
+curl http://localhost:8190/shieldapi/stats
+
+# Admin dashboard - React interface
+open http://localhost:3001
 ```
 
 ## 📁 Project Structure

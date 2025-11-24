@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Badge } from './ui/badge';
+import { useNotifications } from '../contexts/NotificationContext';
+import { useConfirm } from './ConfirmModal';
 
 interface HotfixAction {
   type: 'replace' | 'prepend' | 'append' | 'remove' | 'attribute';
@@ -69,6 +71,9 @@ const HotfixPanel = () => {
   const [editingRule, setEditingRule] = useState<HotfixRule | null>(null);
   const [activeTab, setActiveTab] = useState<'rules' | 'test'>('rules');
 
+  const { addNotification } = useNotifications();
+  const { confirm, ConfirmComponent } = useConfirm();
+
   // Form state for create/edit
   const [formData, setFormData] = useState({
     name: '',
@@ -116,7 +121,7 @@ const HotfixPanel = () => {
 
   const handleCreateRule = async () => {
     if (!formData.name || !formData.urlPattern) {
-      alert('Name and URL pattern are required');
+      addNotification('Name and URL pattern are required', 'error');
       return;
     }
 
@@ -135,12 +140,13 @@ const HotfixPanel = () => {
       if (result.success) {
         setShowCreateForm(false);
         resetForm();
+        addNotification('Hotfix rule created successfully', 'success');
         fetchData();
       } else {
-        alert(`Error: ${result.error}`);
+        addNotification(`Error: ${result.error}`, 'error');
       }
     } catch (error) {
-      alert('Failed to create rule');
+      addNotification('Failed to create rule', 'error');
     } finally {
       setLoading(false);
     }
@@ -148,13 +154,13 @@ const HotfixPanel = () => {
 
   const handleUpdateRule = async () => {
     if (!editingRule || !formData.name || !formData.urlPattern) {
-      alert('Name and URL pattern are required');
+      addNotification('Name and URL pattern are required', 'error');
       return;
     }
 
     setLoading(true);
     try {
-      const response = await fetch(`/api/hotfix/rules/${editingRule.id}`, {
+      const response = await fetch(`/shieldadmin/shieldapi/hotfix/rules/${editingRule.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -179,10 +185,17 @@ const HotfixPanel = () => {
   };
 
   const handleDeleteRule = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this hotfix rule?')) return;
+    const shouldDelete = await confirm(
+      'Delete Hotfix Rule',
+      'Are you sure you want to delete this hotfix rule?',
+      async () => {},
+      { type: 'danger', confirmText: 'Delete', cancelText: 'Cancel' }
+    );
+
+    if (!shouldDelete) return;
 
     try {
-      const response = await fetch(`/api/hotfix/rules/${id}`, {
+      const response = await fetch(`/shieldadmin/shieldapi/hotfix/rules/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Basic ${btoa(localStorage.getItem('adminCredentials') || '')}`,
@@ -199,7 +212,7 @@ const HotfixPanel = () => {
 
   const handleToggleRule = async (id: string) => {
     try {
-      const response = await fetch(`/api/hotfix/rules/${id}/toggle`, {
+      const response = await fetch(`/shieldadmin/shieldapi/hotfix/rules/${id}/toggle`, {
         method: 'POST',
         headers: {
           'Authorization': `Basic ${btoa(localStorage.getItem('adminCredentials') || '')}`,
@@ -313,7 +326,9 @@ const HotfixPanel = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <>
+      <ConfirmComponent />
+      <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">Emergency Hotfix Engine</h2>
         <div className="flex gap-2">
@@ -684,6 +699,7 @@ const HotfixPanel = () => {
         </Card>
       )}
     </div>
+    </>
   );
 };
 

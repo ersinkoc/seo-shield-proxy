@@ -129,26 +129,35 @@ pm2 start ecosystem.config.js
 # Check service status
 pm2 status
 
-# Test SEO endpoints
-curl http://localhost:8080/api/seo/status
+# Test main proxy health
+curl http://localhost:8080/health
 
-# Test SEO optimization
+# Test API server
+curl http://localhost:8190/shieldapi/stats
+
+# Test transparent proxy
 curl -H "User-Agent: Mozilla/5.0 (compatible; Googlebot/2.1)" \
      http://localhost:8080/test-page
+
+# Test admin dashboard
+curl http://localhost:3001
 ```
 
 ## 🔍 Post-Deployment Monitoring
 
 ### **Health Checks**
 ```bash
-# System health
+# Main proxy health
 curl http://localhost:8080/health
 
-# SEO protocols status
-curl http://localhost:8080/api/seo/status | jq
+# API server status
+curl http://localhost:8190/shieldapi/stats | jq
+
+# Admin dashboard accessibility
+curl -I http://localhost:3001
 
 # Configuration verification
-curl http://localhost:8080/api/seo/config | jq
+curl http://localhost:8190/shieldapi/config | jq
 ```
 
 ### **Log Monitoring**

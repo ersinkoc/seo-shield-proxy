@@ -11,10 +11,13 @@ USER root
 COPY package*.json ./
 
 # Install dependencies
-RUN npm ci --omit=dev
+RUN npm ci
 
 # Copy source code
 COPY . .
+
+# Build TypeScript to JavaScript
+RUN npm run build
 
 # Change ownership to pptruser (non-root user provided by the base image)
 RUN chown -R pptruser:pptruser /app
@@ -30,4 +33,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
   CMD node -e "require('http').get('http://localhost:8080/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
 
 # Start the application
-CMD ["node", "src/server.js"]
+CMD ["node", "dist/server.js"]

@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Badge } from './ui/badge';
+import { useNotifications } from '../contexts/NotificationContext';
+import { useConfirm } from './ConfirmModal';
 
 interface WarmStats {
   total: number;
@@ -31,6 +33,9 @@ const CacheWarmer = () => {
   const [sitemapUrl, setSitemapUrl] = useState('');
   const [manualUrls, setManualUrls] = useState('');
   const [priority, setPriority] = useState<'high' | 'normal' | 'low'>('normal');
+
+  const { addNotification } = useNotifications();
+  const { confirm, ConfirmComponent } = useConfirm();
 
   // Fetch stats periodically
   useEffect(() => {
@@ -74,11 +79,12 @@ const CacheWarmer = () => {
       if (result.success) {
         setSitemapUrl('');
         fetchStats();
+        addNotification('Sitemap processed successfully', 'success');
       } else {
-        alert(`Error: ${result.error}`);
+        addNotification(`Error: ${result.error}`, 'error');
       }
     } catch (error) {
-      alert('Failed to process sitemap');
+      addNotification('Failed to process sitemap', 'error');
     } finally {
       setLoading(false);
     }
@@ -119,7 +125,14 @@ const CacheWarmer = () => {
   };
 
   const handleClearQueue = async () => {
-    if (!confirm('Are you sure you want to clear the warm queue?')) return;
+    const shouldClear = await confirm(
+      'Clear Warm Queue',
+      'Are you sure you want to clear the warm queue?',
+      async () => {},
+      { type: 'warning', confirmText: 'Clear Queue', cancelText: 'Cancel' }
+    );
+
+    if (!shouldClear) return;
 
     try {
       const response = await fetch('/api/warmer/clear', {
@@ -162,7 +175,9 @@ const CacheWarmer = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <>
+      <ConfirmComponent />
+      <div className="space-y-6">
       {/* Stats Overview */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
@@ -360,6 +375,7 @@ const CacheWarmer = () => {
         </Card>
       )}
     </div>
+    </>
   );
 };
 

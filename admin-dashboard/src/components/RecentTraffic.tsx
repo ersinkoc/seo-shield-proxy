@@ -21,7 +21,7 @@ export default function RecentTraffic() {
 
   const fetchTraffic = async (): Promise<void> => {
     try {
-      const res = await fetch(`/admin/api/traffic?limit=${limit}`);
+      const res = await fetch(`/shieldadmin/shieldapi/traffic?limit=${limit}`);
       const data = await res.json();
       if (data.success) {
         setTraffic(data.data || []);

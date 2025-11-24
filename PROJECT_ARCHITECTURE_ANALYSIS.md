@@ -79,12 +79,22 @@ app.use(compression({ threshold: 1024, level: 9 }));
 4. **SSR Rendering**: Puppeteer cluster with concurrency control
 5. **Response**: Optimized delivery with compression
 
-### Route Structure
+### Ultra-Clean Route Structure
 
-- **SSR Routes**: Dynamic rendering with cache optimization
-- **Admin Routes**: 70+ endpoints for management (port 3000)
-- **Static Routes**: Asset serving for admin dashboard
-- **API Routes**: RESTful services for enterprise features
+#### **Port 8080 - Main Proxy**
+- **Health Route**: `/health` - Direct system status response
+- **Transparent Proxy**: All other routes forwarded to target URL
+- No admin routes, no API endpoints, pure proxy functionality
+
+#### **Port 8190 - API Server**
+- **Admin API Routes**: `/shieldapi/*` - 70+ endpoints for management
+- **WebSocket Routes**: Real-time updates for admin dashboard
+- Multi-tier rate limiting and authentication
+
+#### **Port 3001 - Admin Dashboard**
+- **React SPA**: Single page application interface
+- **Static Assets**: Built frontend assets
+- **API Communication**: Connects to port 8190 for data
 
 ---
 

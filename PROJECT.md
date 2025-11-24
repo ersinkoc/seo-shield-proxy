@@ -21,37 +21,91 @@ SEO Shield Proxy is a sophisticated reverse proxy solution that solves the funda
 - **🛡️ Enterprise Security**: Multi-tier rate limiting and comprehensive protection
 - **🔧 Production Ready**: Docker containerization with health checks and monitoring
 
-## 🏗️ Architecture
+## 🏗️ Ultra-Clean Architecture
 
 ### System Overview
 
+The SEO Shield Proxy implements a **microservice architecture** with complete port separation:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    SEO Shield Proxy System                     │
+├─────────────────┬─────────────────┬─────────────────┬──────────┤
+│   Port 8080     │    Port 8190     │    Port 3001     │ Port 6379 │
+│  Main Proxy     │   API Server     │ Admin Dashboard │  Redis   │
+└─────────────────┴─────────────────┴─────────────────┴──────────┘
+```
+
+### Port Architecture
+
+#### **Port 8080 - Ultra-Clean Proxy**
 ```
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   Human Users   │───▶│   SEO Shield     │───▶│   Your SPA App  │
-│   (Browsers)    │    │      Proxy       │    │   (React/Vue)   │
+│   All Requests  │───▶│  Health Check    │    │  Transparent    │
+│   (Humans/Bots) │    │   /health only   │    │    Proxy        │
 └─────────────────┘    └──────────────────┘    └─────────────────┘
-                              │
-                              ▼
-                       ┌──────────────────┐
-                       │   Search Engine  │
-                       │      Crawlers    │
-                       │   (Google, Bing) │
-                       └──────────────────┘
-                              │
-                              ▼
-                       ┌──────────────────┐
-                       │   Puppeteer SSR  │
-                       │   Headless Chrome│
-                       │   + Optimization │
-                       └──────────────────┘
-                              │
-                              ▼
-                       ┌──────────────────┐
-                       │     Caching      │
-                       │  (Redis/Memory)  │
-                       │     + SWR        │
-                       └──────────────────┘
+                              │                        │
+                              ▼                        ▼
+                       ┌──────────────────┐    ┌─────────────────┐
+                       │   Direct Response│    │   Target URL    │
+                       │   (JSON/Status)  │    │   (Forwarding)  │
+                       └──────────────────┘    └─────────────────┘
 ```
+
+#### **Port 8190 - API Server**
+```
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   Admin APIs    │───▶│  /shieldapi/*    │───▶│  Admin Services │
+│   (REST/WebSocket) │  │  Rate Limited    │    │  + Analytics    │
+└─────────────────┘    └──────────────────┘    └─────────────────┘
+```
+
+#### **Port 3001 - Admin Dashboard**
+```
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   React Admin   │───▶│   WebSocket      │───▶│   API Server    │
+│   (UI Interface)│    │   Real-time      │    │   (Port 8190)   │
+└─────────────────┘    └──────────────────┘    └─────────────────┘
+```
+
+#### **Port 6379 - Redis Cache**
+```
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   All Services  │◀──▶│    Redis Cache   │───▶│  Persistent     │
+│   (Caching)     │    │   (Shared State) │    │   Storage       │
+└─────────────────┘    └──────────────────┘    └─────────────────┘
+```
+
+### Core Features by Service
+
+#### **Main Proxy (Port 8080)**
+- **Pure Proxy Only**: No admin routes, no API endpoints
+- **Transparent Forwarding**: No header manipulation
+- **Bot Detection**: `isbot` library integration
+- **SSR Rendering**: Puppeteer for search engines
+- **Caching**: Memory/Redis with SWR strategy
+- **Health Check**: Only direct endpoint (`/health`)
+
+#### **API Server (Port 8190)**
+- **Admin APIs**: `/shieldapi/*` endpoints
+- **Rate Limiting**: Multi-tier protection
+- **Authentication**: Basic auth with secure credentials
+- **WebSocket**: Real-time updates for dashboard
+- **Analytics**: Traffic monitoring and metrics
+- **Configuration**: Runtime configuration management
+
+#### **Admin Dashboard (Port 3001)**
+- **React Interface**: Modern SPA with TypeScript
+- **Real-time Updates**: WebSocket integration
+- **Traffic Analytics**: Charts and metrics visualization
+- **Cache Management**: Visual cache control
+- **System Monitoring**: Memory and performance tracking
+
+#### **Redis Cache (Port 6379)**
+- **Shared Storage**: Distributed caching across services
+- **Persistence**: Optional data persistence
+- **Performance**: Sub-millisecond access times
+- **Clustering**: Redis clustering support
 
 ### Core Components
 
@@ -71,7 +125,8 @@ SEO Shield Proxy is a sophisticated reverse proxy solution that solves the funda
    - Pattern-based caching rules
 
 4. **Admin Dashboard** (`admin-dashboard/`)
-   - Real-time monitoring interface
+   - React interface running on port 3001
+   - Real-time monitoring via API server (port 8190)
    - WebSocket-powered live updates
    - Traffic analytics and management
 
@@ -305,7 +360,7 @@ The proxy also supports hot-reloadable JSON configuration for advanced settings:
   "adminAuth": {
     "enabled": true,
     "username": "admin",
-    "password": "seo-shield-2024"
+    "password": "seo-shield-2025"
   },
   "cacheRules": {
     "noCachePatterns": ["/checkout", "/cart", "/admin/*", "/api/*"],
@@ -325,37 +380,41 @@ The proxy also supports hot-reloadable JSON configuration for advanced settings:
 
 ## 🔌 API Endpoints
 
-### Main Proxy Endpoints
+### Main Proxy Endpoints (Port 8080)
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET` | `/` | Main proxy endpoint - forwards to TARGET_URL |
 | `GET` | `/health` | Health check with system metrics |
-| `POST` | `/cache/clear` | Clear all cache entries |
-| `GET` | `/*` | Static asset proxy and catch-all handler |
+| `ALL` | `/*` | Transparent proxy - forwards to TARGET_URL |
 
-### Admin Dashboard Endpoints
+### API Server Endpoints (Port 8190)
 
 | Method | Endpoint | Authentication | Description |
 |--------|----------|----------------|-------------|
-| `GET` | `/admin/api/stats` | Required | System statistics and metrics |
-| `GET` | `/admin/api/traffic` | Required | Recent traffic log with filtering |
-| `GET` | `/admin/api/timeline` | Required | Traffic timeline data for charts |
-| `GET` | `/admin/api/urls` | Required | URL access statistics |
-| `GET` | `/admin/api/cache` | Required | Cache entries listing |
-| `POST` | `/admin/api/cache/clear` | Required | Clear cache (specific or all) |
-| `GET` | `/admin/api/config` | Required | Current system configuration |
-| `GET` | `/admin/` | Required | Admin dashboard interface |
+| `GET` | `/shieldapi/stats` | Required | System statistics and metrics |
+| `GET` | `/shieldapi/traffic` | Required | Recent traffic log with filtering |
+| `GET` | `/shieldapi/timeline` | Required | Traffic timeline data for charts |
+| `GET` | `/shieldapi/urls` | Required | URL access statistics |
+| `GET` | `/shieldapi/cache` | Required | Cache entries listing |
+| `POST` | `/shieldapi/cache/clear` | Required | Clear cache (specific or all) |
+| `GET` | `/shieldapi/config` | Required | Current system configuration |
 
-### WebSocket Endpoints
+### WebSocket Endpoints (Port 8190)
 
 | Endpoint | Description |
 |----------|-------------|
-| `/admin/socket.io` | WebSocket connection for real-time updates |
+| `/shieldapi/socket.io` | WebSocket connection for real-time updates |
 
-**Authentication:** Admin endpoints use Basic Authentication with credentials:
+### Admin Dashboard (Port 3001)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/` | React admin dashboard interface |
+| `GET` | `/static/*` | Static assets for the dashboard |
+
+**Authentication:** Admin API endpoints use Basic Authentication with credentials:
 - **Username**: `admin`
-- **Password**: `seo-shield-2024` (default)
+- **Password**: `seo-shield-2025` (default)
 
 ## 🛡️ Security Features
 
@@ -609,9 +668,10 @@ cd seo-shield-proxy
 docker-compose up -d
 
 # Access services
-# Proxy: http://localhost:8080
-# Admin Dashboard: http://localhost:8080/admin
-# Demo SPA: http://localhost:3000
+# Main Proxy: http://localhost:8080 (transparent proxy + /health)
+# API Server: http://localhost:8190 (/shieldapi/* endpoints)
+# Admin Dashboard: http://localhost:3001 (React interface)
+# Redis Cache: localhost:6379
 ```
 
 ### Manual Deployment
@@ -646,26 +706,47 @@ TARGET_URL=https://your-app.com npm start
 ```yaml
 version: '3.8'
 services:
-  seo-shield-proxy:
+  # Main Proxy Server (Port 8080)
+  seo-proxy:
     build: .
     ports:
       - "8080:8080"
     environment:
-      - TARGET_URL=http://demo-spa:3000
+      - TARGET_URL=https://generated.gallery/
+      - PORT=8080
       - CACHE_TYPE=redis
       - REDIS_URL=redis://redis:6379
     depends_on:
       - redis
 
+  # API Server (Port 8190)
+  seo-api:
+    build: .
+    command: ["sh", "-c", "npm run build:api && node dist/api-server.js"]
+    ports:
+      - "8190:8190"
+    environment:
+      - API_PORT=8190
+    depends_on:
+      - redis
+
+  # Admin Dashboard (Port 3001)
+  admin-dashboard:
+    build: ./admin-dashboard
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=development
+    command: npm run dev
+    depends_on:
+      - seo-proxy
+
+  # Redis Cache (Port 6379)
   redis:
     image: redis:7-alpine
     ports:
       - "6379:6379"
-
-  demo-spa:
-    build: ./demo-spa
-    ports:
-      - "3000:3000"
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
 ```
 
 ### Platform Deployment

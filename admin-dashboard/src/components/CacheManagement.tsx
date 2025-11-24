@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
+import { useNotifications } from '../contexts/NotificationContext';
+import { useConfirm } from './ConfirmModal';
 import type { StatsData } from '../types';
 
 interface CacheEntry {
@@ -22,13 +24,16 @@ export default function CacheManagement({ stats }: CacheManagementProps) {
   const [cacheList, setCacheList] = useState<CacheEntry[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
 
+  const { addNotification } = useNotifications();
+  const { confirm, ConfirmComponent } = useConfirm();
+
   useEffect(() => {
     fetchCacheList();
   }, []);
 
   const fetchCacheList = async (): Promise<void> => {
     try {
-      const res = await fetch('/admin/api/cache');
+      const res = await fetch('/api/cache');
       const data = await res.json();
       if (data.success) {
         setCacheList(data.data || []);
@@ -39,44 +44,59 @@ export default function CacheManagement({ stats }: CacheManagementProps) {
   };
 
   const clearAllCache = async (): Promise<void> => {
-    if (!confirm('Are you sure you want to clear ALL cached pages?')) return;
+    const shouldClear = await confirm(
+      'Clear All Cache',
+      'Are you sure you want to clear ALL cached pages?',
+      async () => {},
+      { type: 'warning', confirmText: 'Clear All', cancelText: 'Cancel' }
+    );
+
+    if (!shouldClear) return;
 
     setLoading(true);
     try {
-      const res = await fetch('/cache/clear', { method: 'POST' });
+      const res = await fetch('/api/cache/clear', { method: 'POST' });
       const data = await res.json();
 
       if (data.status === 'ok') {
         setCacheList([]);
-        alert(`Cache cleared successfully! Removed ${data.cleared.keys} keys.`);
+        addNotification(`Cache cleared successfully! Removed ${data.cleared.keys} keys.`, 'success');
       } else {
-        alert('Failed to clear cache: ' + data.error);
+        addNotification('Failed to clear cache: ' + data.error, 'error');
       }
     } catch (error) {
       console.error('Failed to clear cache:', error);
-      alert('Failed to clear cache. Please try again.');
+      addNotification('Failed to clear cache. Please try again.', 'error');
     } finally {
       setLoading(false);
     }
   };
 
   const deleteCacheItem = async (key: string): Promise<void> => {
-    if (!confirm(`Delete cached page: ${key}?`)) return;
+    const shouldDelete = await confirm(
+      'Delete Cache Item',
+      `Delete cached page: ${key}?`,
+      async () => {},
+      { type: 'warning', confirmText: 'Delete', cancelText: 'Cancel' }
+    );
+
+    if (!shouldDelete) return;
 
     try {
-      const res = await fetch(`/admin/api/cache/${encodeURIComponent(key)}`, {
+      const res = await fetch(`/api/cache/${encodeURIComponent(key)}`, {
         method: 'DELETE'
       });
       const data = await res.json();
 
       if (data.success) {
         setCacheList(cacheList.filter(item => item.key !== key));
+        addNotification('Cache item deleted successfully', 'success');
       } else {
-        alert('Failed to delete cache item: ' + data.error);
+        addNotification('Failed to delete cache item: ' + data.error, 'error');
       }
     } catch (error) {
       console.error('Failed to delete cache item:', error);
-      alert('Failed to delete cache item. Please try again.');
+      addNotification('Failed to delete cache item. Please try again.', 'error');
     }
   };
 
@@ -89,8 +109,10 @@ export default function CacheManagement({ stats }: CacheManagementProps) {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Cache Stats */}
+    <>
+      <ConfirmComponent />
+      <div className="space-y-6">
+        {/* Cache Stats */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
@@ -184,5 +206,6 @@ export default function CacheManagement({ stats }: CacheManagementProps) {
         </CardContent>
       </Card>
     </div>
+    </>
   );
 }

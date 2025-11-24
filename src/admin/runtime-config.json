@@ -1,16 +1,18 @@
 {
-  "adminPath": "/admin",
+  "adminPath": "/shieldadmin",
   "adminAuth": {
     "enabled": true,
     "username": "admin",
-    "password": "seo-shield-2024"
+    "password": "seo-shield-2025"
   },
   "cacheRules": {
     "noCachePatterns": [
       "/checkout",
       "/cart",
-      "/admin/*",
-      "/api/*"
+      "/admin",
+      "/api",
+      "/shieldadmin",
+      "/shieldapi"
     ],
     "cachePatterns": [],
     "cacheByDefault": true,

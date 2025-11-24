@@ -33,7 +33,7 @@ export default function SEOProtocolsPanel() {
   const fetchProtocols = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/admin/seo-protocols/status');
+      const response = await fetch('/api/seo-protocols/status');
       const data: SEOProtocolsResponse = await response.json();
       setProtocols(data.protocols);
       setGlobalStats(data.globalStats);
@@ -46,7 +46,7 @@ export default function SEOProtocolsPanel() {
 
   const toggleProtocol = async (protocolName: string) => {
     try {
-      const response = await fetch(`/api/admin/seo-protocols/${protocolName}/toggle`, {
+      const response = await fetch(`/shieldadmin/shieldapi/seo-protocols/${protocolName}/toggle`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       });
@@ -60,7 +60,7 @@ export default function SEOProtocolsPanel() {
 
   const runProtocol = async (protocolName: string) => {
     try {
-      const response = await fetch(`/api/admin/seo-protocols/${protocolName}/run`, {
+      const response = await fetch(`/shieldadmin/shieldapi/seo-protocols/${protocolName}/run`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       });

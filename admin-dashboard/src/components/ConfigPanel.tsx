@@ -22,7 +22,7 @@ export default function ConfigPanel() {
 
   const fetchConfig = async (): Promise<void> => {
     try {
-      const res = await fetch('/admin/api/config');
+      const res = await fetch('/api/config');
       const data = await res.json();
       if (data.success) {
         setConfig(data.data);
