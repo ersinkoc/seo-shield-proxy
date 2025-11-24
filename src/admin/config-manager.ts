@@ -100,7 +100,7 @@ class ConfigManager {
       adminAuth: {
         enabled: true,
         username: 'admin',
-        password: 'seo-shield-2025', // Should be changed in production
+        password: 'seo-shield-2024', // Should be changed in production
       },
       cacheRules: {
         noCachePatterns: ['/checkout', '/cart', '/admin/*', '/api/*'],

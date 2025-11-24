@@ -305,7 +305,7 @@ The proxy also supports hot-reloadable JSON configuration for advanced settings:
   "adminAuth": {
     "enabled": true,
     "username": "admin",
-    "password": "seo-shield-2025"
+    "password": "seo-shield-2024"
   },
   "cacheRules": {
     "noCachePatterns": ["/checkout", "/cart", "/admin/*", "/api/*"],
@@ -355,7 +355,7 @@ The proxy also supports hot-reloadable JSON configuration for advanced settings:
 
 **Authentication:** Admin endpoints use Basic Authentication with credentials:
 - **Username**: `admin`
-- **Password**: `seo-shield-2025` (default)
+- **Password**: `seo-shield-2024` (default)
 
 ## 🛡️ Security Features
 
