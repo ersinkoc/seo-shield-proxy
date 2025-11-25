@@ -53,7 +53,7 @@ The system uses **port-based microservice separation**:
 
 | Port | Service | Purpose |
 |------|---------|---------|
-| 8080 | Main Proxy | Pure reverse proxy with SSR for bots, only `/health` endpoint |
+| 8080 | Main Proxy | Pure reverse proxy with SSR for bots, only `/shieldhealth` endpoint |
 | 8190 | API Server | All admin APIs under `/shieldapi/*`, WebSocket support |
 | 3001 | Dashboard | React admin interface |
 | 6379 | Redis | Cache storage (production) |

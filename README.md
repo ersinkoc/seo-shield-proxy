@@ -113,7 +113,7 @@ curl -A "Googlebot" http://localhost:8080/
 curl http://localhost:8080/
 
 # Health check
-curl http://localhost:8080/health
+curl http://localhost:8080/shieldhealth
 
 # Debug mode
 curl "http://localhost:8080/?_render=debug"

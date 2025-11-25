@@ -66,14 +66,14 @@ SEO Shield Proxy uses a **port-based microservice separation** architecture that
 
 The main proxy server on port 8080 is designed to be **minimal and focused**:
 
-- **Only one endpoint**: `/health` (for load balancer health checks)
+- **Only one endpoint**: `/shieldhealth` (for load balancer health checks)
 - **All other routes**: Transparently proxied to target SPA
 - **No business logic**: No admin routes, no configuration endpoints
 - **Bot handling**: Automatic SSR for detected bots
 
 ```typescript
 // Port 8080 handles only:
-// 1. Health check: GET /health
+// 1. Health check: GET /shieldhealth
 // 2. Everything else: Proxy to TARGET_URL (with SSR for bots)
 ```
 
@@ -173,7 +173,7 @@ The system is designed to **never block users**:
 - Request routing (bot vs human)
 - Cache lookup and storage
 - Puppeteer render queue management
-- Health endpoint (/health)
+- Health endpoint (/shieldhealth)
 ```
 
 ### API Server (`src/api-server.ts`)

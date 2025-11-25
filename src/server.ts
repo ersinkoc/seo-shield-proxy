@@ -88,7 +88,7 @@ const STATIC_EXTENSIONS = [
 
 function isStaticAsset(path: string): boolean {
   // Don't treat API endpoints or root paths as static assets
-  if (path.startsWith('/api') || path.startsWith('/health') || path.startsWith('/assets') || path === '/' || path.endsWith('/')) {
+  if (path.startsWith('/api') || path.startsWith('/shieldhealth') || path.startsWith('/assets') || path === '/' || path.endsWith('/')) {
     return false;
   }
 
@@ -351,7 +351,7 @@ const proxyMiddleware = createProxyMiddleware({
 } as any);
 
 // Health check endpoint - proxy middleware'den önce tanımlanmalı
-app.get('/health', (req: Request, res: Response) => {
+app.get('/shieldhealth', (req: Request, res: Response) => {
   res.json({
     status: 'ok',
     service: 'seo-shield-proxy',

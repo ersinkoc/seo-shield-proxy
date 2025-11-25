@@ -40,15 +40,16 @@ export async function apiCall(endpoint: string, options: RequestInit = {}) {
 
   // Add authentication header if token exists
   const token = localStorage.getItem('adminToken');
-  const defaultOptions: RequestInit = {
+
+  // Properly merge headers - ensure auth token is always included
+  const finalOptions: RequestInit = {
+    ...options,
     headers: {
       'Content-Type': 'application/json',
       ...(token && { 'Authorization': `Bearer ${token}` }),
-      ...options.headers,
+      ...(options.headers as Record<string, string>),
     },
   };
-
-  const finalOptions = { ...defaultOptions, ...options };
 
   try {
     const response = await fetch(url, finalOptions);

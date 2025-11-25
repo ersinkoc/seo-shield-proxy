@@ -169,7 +169,7 @@ npm start
 - **GET /shieldapi/seo/status** - Protocol status and metrics
 - **GET /shieldapi/seo/config** - Current configuration
 - **POST /shieldapi/seo/config** - Update configuration
-- **GET /health** - System health check (main proxy port 8080)
+- **GET /shieldhealth** - System health check (main proxy port 8080)
 
 ### Admin Dashboard Integration
 

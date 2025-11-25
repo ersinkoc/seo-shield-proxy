@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { API_BASE_URL } from '../config/api';
 
 interface LogEntry {
   id: number;
@@ -47,7 +48,7 @@ export default function RealTimeStream() {
 
   const connectToStream = () => {
     try {
-      const eventSource = new EventSource('/api/stream');
+      const eventSource = new EventSource(`${API_BASE_URL}stream`);
       eventSourceRef.current = eventSource;
 
       eventSource.onopen = () => {

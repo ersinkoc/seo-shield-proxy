@@ -360,7 +360,7 @@ async healthCheck(): Promise<{ connected: boolean; stats?: any }> {
 
 ```bash
 # Check connection via API
-curl http://localhost:8190/shieldapi/health
+curl http://localhost:8190/shieldhealth
 
 {
   "status": "healthy",

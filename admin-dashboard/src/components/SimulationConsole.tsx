@@ -50,8 +50,38 @@ export default function SimulationConsole() {
           uaResponse.json(),
           resultsResponse.json()
         ]);
-        setUserAgents(uaData.agents || []);
-        setResults(resultsData.results || []);
+
+        // API returns { success: true, data: [...] }
+        if (uaData.success && uaData.data) {
+          // Transform UserAgentTemplates to our UserAgent interface
+          const agents = uaData.data.map((ua: any) => ({
+            name: ua.name,
+            userAgent: ua.userAgent,
+            type: ua.category === 'searchbot' ? 'googlebot' :
+                  ua.category === 'socialbot' ? 'facebook' : 'custom',
+            lastUsed: '',
+            successCount: 0,
+            errorCount: 0
+          }));
+          setUserAgents(agents);
+        }
+
+        if (resultsData.success && resultsData.data) {
+          // Transform SimulationRequest to our SimulationResult interface
+          const historyResults = resultsData.data.map((sim: any) => ({
+            id: sim.id,
+            url: sim.url,
+            userAgent: sim.userAgent,
+            statusCode: sim.result?.status || 0,
+            responseTime: sim.result?.renderTime || 0,
+            timestamp: sim.timestamp,
+            success: sim.status === 'completed',
+            error: sim.error,
+            cached: false,
+            size: sim.result?.resources?.totalSize || 0
+          }));
+          setResults(historyResults);
+        }
       }
     } catch (error) {
       console.error('Failed to fetch simulation data:', error);
@@ -66,23 +96,38 @@ export default function SimulationConsole() {
 
     setLoading(true);
     try {
-      const endpoint = batchMode ? '/ua-simulator/batch' : '/ua-simulator/simulate';
-      const body = batchMode
-        ? { url: testUrl, types: selectedType === 'all' ? ['googlebot', 'bingbot', 'facebook', 'twitter'] : [selectedType] }
-        : { url: testUrl, userAgent: selectedUA || customUA };
+      // Use the correct API endpoint
+      const body = {
+        url: testUrl,
+        userAgentId: selectedUA || customUA || 'googlebot',
+        options: batchMode ? { types: selectedType === 'all' ? ['googlebot', 'bingbot', 'facebook', 'twitter'] : [selectedType] } : {}
+      };
 
-      const response = await apiCall(endpoint, {
+      const response = await apiCall('/simulate/start', {
         method: 'POST',
         body: JSON.stringify(body),
       });
 
       if (response.ok) {
         const data = await response.json();
-        if (Array.isArray(data.results)) {
-          setResults(prev => [...data.results, ...prev]);
-        } else {
-          setResults(prev => [data.result, ...prev]);
+        if (data.success && data.data) {
+          // Transform simulation data to match our result interface
+          const simulationResult: SimulationResult = {
+            id: data.data.id || Date.now().toString(),
+            url: data.data.url || testUrl,
+            userAgent: data.data.userAgent?.userAgent || selectedUA || customUA,
+            statusCode: data.data.result?.statusCode || 200,
+            responseTime: data.data.result?.responseTime || 0,
+            timestamp: data.data.startedAt || new Date().toISOString(),
+            success: data.data.status === 'completed',
+            error: data.data.error,
+            cached: data.data.result?.cached || false,
+            size: data.data.result?.size || 0
+          };
+          setResults(prev => [simulationResult, ...prev]);
         }
+        // Refresh data to get updated history
+        fetchData();
       }
     } catch (error) {
       console.error('Simulation failed:', error);

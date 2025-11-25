@@ -59,7 +59,7 @@ describe('Server Integration Tests', () => {
     });
 
     // Health endpoint
-    app.get('/health', (req, res) => {
+    app.get('/shieldhealth', (req, res) => {
       res.json({
         status: 'ok',
         uptime: 1000,
@@ -395,32 +395,32 @@ describe('Server Integration Tests', () => {
 
   describe('Health Endpoint', () => {
     test('should return 200 status', async () => {
-      const response = await request(app).get('/health');
+      const response = await request(app).get('/shieldhealth');
 
       expect(response.status).toBe(200);
     });
 
     test('should return JSON', async () => {
-      const response = await request(app).get('/health');
+      const response = await request(app).get('/shieldhealth');
 
       expect(response.headers['content-type']).toMatch(/json/);
     });
 
     test('should include status', async () => {
-      const response = await request(app).get('/health');
+      const response = await request(app).get('/shieldhealth');
 
       expect(response.body.status).toBe('ok');
     });
 
     test('should include uptime', async () => {
-      const response = await request(app).get('/health');
+      const response = await request(app).get('/shieldhealth');
 
       expect(response.body).toHaveProperty('uptime');
       expect(typeof response.body.uptime).toBe('number');
     });
 
     test('should include cache statistics', async () => {
-      const response = await request(app).get('/health');
+      const response = await request(app).get('/shieldhealth');
 
       expect(response.body).toHaveProperty('cache');
       expect(response.body.cache).toHaveProperty('keys');
@@ -430,7 +430,7 @@ describe('Server Integration Tests', () => {
     });
 
     test('should include cache rules', async () => {
-      const response = await request(app).get('/health');
+      const response = await request(app).get('/shieldhealth');
 
       expect(response.body).toHaveProperty('cacheRules');
       expect(response.body.cacheRules).toHaveProperty('noCachePatterns');
@@ -440,7 +440,7 @@ describe('Server Integration Tests', () => {
     });
 
     test('should include config', async () => {
-      const response = await request(app).get('/health');
+      const response = await request(app).get('/shieldhealth');
 
       expect(response.body).toHaveProperty('config');
       expect(response.body.config).toHaveProperty('targetUrl');
@@ -457,7 +457,7 @@ describe('Server Integration Tests', () => {
       await request(app).get('/page1').set('User-Agent', 'Googlebot'); // hit
       await request(app).get('/page1').set('User-Agent', 'Googlebot'); // hit
 
-      const response = await request(app).get('/health');
+      const response = await request(app).get('/shieldhealth');
 
       expect(response.body.cache.hits).toBeGreaterThan(0);
       expect(response.body.cache.hitRate).toBeGreaterThan(0);
@@ -480,7 +480,7 @@ describe('Server Integration Tests', () => {
       expect(clearResponse.body.message).toContain('cleared');
 
       // Verify cache is empty
-      const healthResponse = await request(app).get('/health');
+      const healthResponse = await request(app).get('/shieldhealth');
       expect(healthResponse.body.cache.keys).toBe(0);
     });
 

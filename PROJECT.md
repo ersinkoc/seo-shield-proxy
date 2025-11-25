@@ -42,7 +42,7 @@ The SEO Shield Proxy implements a **microservice architecture** with complete po
 ```
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
 │   All Requests  │───▶│  Health Check    │    │  Transparent    │
-│   (Humans/Bots) │    │   /health only   │    │    Proxy        │
+│   (Humans/Bots) │    │ /shieldhealth    │    │    Proxy        │
 └─────────────────┘    └──────────────────┘    └─────────────────┘
                               │                        │
                               ▼                        ▼
@@ -84,7 +84,7 @@ The SEO Shield Proxy implements a **microservice architecture** with complete po
 - **Bot Detection**: `isbot` library integration
 - **SSR Rendering**: Puppeteer for search engines
 - **Caching**: Memory/Redis with SWR strategy
-- **Health Check**: Only direct endpoint (`/health`)
+- **Health Check**: Only direct endpoint (`/shieldhealth`)
 
 #### **API Server (Port 8190)**
 - **Admin APIs**: `/shieldapi/*` endpoints
@@ -233,7 +233,7 @@ The SEO Shield Proxy implements a **microservice architecture** with complete po
 
 - **Multi-Tier Rate Limiting**: Different limits for various request types
 - **Comprehensive Security**: Input validation, XSS protection, security headers
-- **Health Checks**: `/health` endpoint with system metrics
+- **Health Checks**: `/shieldhealth` endpoint with system metrics
 - **Docker Support**: Production-ready containerization
 - **Environment Configuration**: Flexible .env-based configuration
 - **Graceful Shutdown**: Clean process termination and resource cleanup
@@ -384,7 +384,7 @@ The proxy also supports hot-reloadable JSON configuration for advanced settings:
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET` | `/health` | Health check with system metrics |
+| `GET` | `/shieldhealth` | Health check with system metrics |
 | `ALL` | `/*` | Transparent proxy - forwards to TARGET_URL |
 
 ### API Server Endpoints (Port 8190)
@@ -668,7 +668,7 @@ cd seo-shield-proxy
 docker-compose up -d
 
 # Access services
-# Main Proxy: http://localhost:8080 (transparent proxy + /health)
+# Main Proxy: http://localhost:8080 (transparent proxy + /shieldhealth)
 # API Server: http://localhost:8190 (/shieldapi/* endpoints)
 # Admin Dashboard: http://localhost:3001 (React interface)
 # Redis Cache: localhost:6379

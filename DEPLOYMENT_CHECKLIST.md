@@ -130,7 +130,7 @@ pm2 start ecosystem.config.js
 pm2 status
 
 # Test main proxy health
-curl http://localhost:8080/health
+curl http://localhost:8080/shieldhealth
 
 # Test API server
 curl http://localhost:8190/shieldapi/stats
@@ -148,7 +148,7 @@ curl http://localhost:3001
 ### **Health Checks**
 ```bash
 # Main proxy health
-curl http://localhost:8080/health
+curl http://localhost:8080/shieldhealth
 
 # API server status
 curl http://localhost:8190/shieldapi/stats | jq

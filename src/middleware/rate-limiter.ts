@@ -16,7 +16,7 @@ export const generalRateLimiter = rateLimit({
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
   skip: (req) => {
     // Skip rate limiting for health checks and internal requests
-    return req.path === '/health' || req.ip === '127.0.0.1' || req.ip === '::1';
+    return req.path === '/shieldhealth' || req.ip === '127.0.0.1' || req.ip === '::1';
   },
 });
 

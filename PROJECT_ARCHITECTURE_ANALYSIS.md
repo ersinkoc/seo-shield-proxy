@@ -82,7 +82,7 @@ app.use(compression({ threshold: 1024, level: 9 }));
 ### Ultra-Clean Route Structure
 
 #### **Port 8080 - Main Proxy**
-- **Health Route**: `/health` - Direct system status response
+- **Health Route**: `/shieldhealth` - Direct system status response
 - **Transparent Proxy**: All other routes forwarded to target URL
 - No admin routes, no API endpoints, pure proxy functionality
 
@@ -326,7 +326,7 @@ The project implements a comprehensive multi-layered rate limiting system with 5
   export const generalRateLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: config.NODE_ENV === 'production' ? 1000 : 10000,
-    skip: (req) => req.path === '/health' || req.ip === '127.0.0.1' || req.ip === '::1'
+    skip: (req) => req.path === '/shieldhealth' || req.ip === '127.0.0.1' || req.ip === '::1'
   });
   ```
 

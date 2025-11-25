@@ -36,7 +36,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 app.use('/shieldapi', adminRoutes);
 
 // Health check endpoint
-app.get('/health', async (req: Request, res: Response) => {
+app.get('/shieldhealth', async (req: Request, res: Response) => {
   const dbHealth = await databaseManager.healthCheck();
   res.json({
     status: 'ok',
@@ -53,7 +53,7 @@ app.use((req: Request, res: Response) => {
   res.status(404).json({
     error: 'Not Found',
     message: `Path ${req.path} not found on API server`,
-    availableEndpoints: ['/health', '/shieldapi/*']
+    availableEndpoints: ['/shieldhealth', '/shieldapi/*']
   });
 });
 
@@ -99,7 +99,7 @@ initializeDatabase().then(() => {
   console.log(`🚀 API Server running on port ${PORT}`);
   console.log('🎯 Admin API endpoints: /shieldapi/*');
   console.log('📡 WebSocket endpoint: /socket.io');
-  console.log('💚 Health check: /health');
+  console.log('💚 Health check: /shieldhealth');
   console.log('');
 });
 }).catch((error) => {
@@ -113,7 +113,7 @@ initializeDatabase().then(() => {
     console.log(`🚀 API Server running on port ${PORT} (Database fallback mode)`);
     console.log('🎯 Admin API endpoints: /shieldapi/*');
     console.log('📡 WebSocket endpoint: /socket.io');
-    console.log('💚 Health check: /health');
+    console.log('💚 Health check: /shieldhealth');
     console.log('');
   });
 });

@@ -139,18 +139,18 @@ All services include built-in health checks:
 docker-compose ps
 
 # View detailed health status
-curl http://localhost/health
+curl http://localhost/shieldhealth
 
 # Database health check
-curl http://localhost:8190/health
+curl http://localhost:8190/shieldhealth
 ```
 
 ### Health Check Endpoints
 
-- **Proxy Server**: `http://localhost:8080/health`
-- **API Server**: `http://localhost:8190/health`
+- **Proxy Server**: `http://localhost:8080/shieldhealth`
+- **API Server**: `http://localhost:8190/shieldhealth`
 - **Admin Dashboard**: `http://localhost:3001`
-- **Nginx**: `http://localhost/health`
+- **Nginx**: `http://localhost/shieldhealth`
 
 ### Monitoring Logs
 
@@ -347,8 +347,8 @@ After deployment, services are available at:
 
 ### Service-Specific Endpoints
 
-- **Proxy Health**: `http://localhost:8080/health`
-- **API Health**: `http://localhost:8190/health`
+- **Proxy Health**: `http://localhost:8080/shieldhealth`
+- **API Health**: `http://localhost:8190/shieldhealth`
 - **Admin Panel**: `http://localhost:3001/admin/`
 
 ## 🚀 Production Deployment Tips
@@ -395,7 +395,7 @@ For Docker-specific issues:
 
 1. Check logs: `npm run docker:logs`
 2. Verify configuration: `docker-compose config`
-3. Check health: `curl http://localhost/health`
+3. Check health: `curl http://localhost/shieldhealth`
 4. Review this documentation
 
 For general issues, see the main README.md.

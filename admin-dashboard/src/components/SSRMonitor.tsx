@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { API_BASE_URL } from '../config/api';
 
 interface SSREvent {
   event: string;
@@ -34,7 +35,7 @@ const SSRMonitor: React.FC = () => {
   useEffect(() => {
     const fetchSSRData = async () => {
       try {
-        const response = await fetch('/api/ssr/events');
+        const response = await fetch(`${API_BASE_URL}ssr/events`);
         if (response.ok) {
           const data = await response.json();
           if (data.success) {
@@ -50,7 +51,7 @@ const SSRMonitor: React.FC = () => {
     fetchSSRData();
 
     // Set up WebSocket for real-time SSR updates
-    const eventSource = new EventSource('/api/stream');
+    const eventSource = new EventSource(`${API_BASE_URL}stream`);
 
     eventSource.onmessage = (event) => {
       try {

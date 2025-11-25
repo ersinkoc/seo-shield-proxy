@@ -163,7 +163,7 @@ xdg-open coverage/index.html  # Linux
 - ✅ Cache rules integration
 - ✅ Meta tag override
 - ✅ Error handling and fallbacks
-- ✅ /health endpoint
+- ✅ /shieldhealth endpoint
 - ✅ /cache/clear endpoint
 - ✅ Edge cases (missing UA, query params, etc.)
 
