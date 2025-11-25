@@ -9,6 +9,7 @@ dotenv.config();
  */
 export interface Config {
   PORT: number;
+  API_PORT: number;
   TARGET_URL: string;
   CACHE_TTL: number;
   CACHE_TYPE: 'memory' | 'redis';
@@ -23,6 +24,7 @@ export interface Config {
   CACHE_BY_DEFAULT: boolean;
   CACHE_META_TAG: string;
   ADMIN_PASSWORD: string;
+  JWT_SECRET: string;
   USER_AGENT: string;
 }
 
@@ -52,8 +54,8 @@ export interface SeoProtocolConfig {
     infiniteScrollSelectors: string[];
     lazyImageSelectors: string[];
     triggerIntersectionObserver: boolean;
-    maxScrollTime: number;
-    scrollSettleTime: number;
+    waitForNetworkIdle: boolean;
+    networkIdleTimeout: number;
   };
 
   // ETag and 304 strategy
@@ -63,7 +65,11 @@ export interface SeoProtocolConfig {
     enable304Responses: boolean;
     checkContentChanges: boolean;
     ignoredElements: string[];
-    significantChanges: boolean;
+    significantChanges: {
+      minWordChange: number;
+      minStructureChange: number;
+      contentWeightThreshold: number;
+    };
   };
 
   // Cluster Mode configuration
@@ -77,6 +83,10 @@ export interface SeoProtocolConfig {
     browser: {
       headless: boolean;
       args: string[];
+      defaultViewport: {
+        width: number;
+        height: number;
+      };
     };
   };
 
@@ -86,7 +96,11 @@ export interface SeoProtocolConfig {
     deepSerialization: boolean;
     includeShadowContent: boolean;
     flattenShadowTrees: boolean;
-    customElements: string[];
+    customElements: Record<string, {
+      extractMethod: 'slot' | 'attribute' | 'custom';
+      selector?: string;
+      attribute?: string;
+    }>;
     preserveShadowBoundaries: boolean;
     extractCSSVariables: boolean;
     extractComputedStyles: boolean;
@@ -308,6 +322,9 @@ const config: Config = {
   // Server port - default to 8080
   PORT: parseInt(process.env['PORT'] || '8080', 10) || 8080,
 
+  // API Server port - default to 8190
+  API_PORT: parseInt(process.env['API_PORT'] || '8190', 10) || 8190,
+
   // Target URL for the SPA (required)
   TARGET_URL: process.env['TARGET_URL'] || '',
 
@@ -349,6 +366,9 @@ const config: Config = {
 
   // Admin panel password
   ADMIN_PASSWORD: process.env['ADMIN_PASSWORD'] || 'admin123',
+
+  // JWT secret for authentication tokens
+  JWT_SECRET: process.env['JWT_SECRET'] || 'seo-shield-jwt-secret-change-in-production',
 
   // User agent for SSR
   USER_AGENT: process.env['USER_AGENT'] || 'Mozilla/5.0 (compatible; SEOShieldProxy/1.0; +https://github.com/seoshield/seo-shield-proxy)',

@@ -1,7 +1,4 @@
-import { MongoDBStorage, MongoStorage } from '../storage/mongodb-storage';
-
-// Type alias for either storage implementation
-type StorageAdapter = MongoDBStorage | MongoStorage;
+import { MongoStorage } from '../storage/mongodb-storage';
 
 export interface BotRule {
   id: string;
@@ -39,13 +36,13 @@ export interface IPReputation {
 }
 
 export class AdvancedBotDetector {
-  private mongoStorage: StorageAdapter;
+  private mongoStorage: MongoStorage;
   private botRules: BotRule[] = [];
   private ipReputationCache: Map<string, IPReputation> = new Map();
   private lastRulesUpdate: Date = new Date(0);
   private ipReputationTTL: number = 3600000; // 1 hour
 
-  constructor(mongoStorage: StorageAdapter) {
+  constructor(mongoStorage: MongoStorage) {
     this.mongoStorage = mongoStorage;
     this.loadBotRules();
   }

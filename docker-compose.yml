@@ -101,6 +101,7 @@ services:
       - MONGODB_URL=mongodb://admin:admin123@mongodb:27017/seo_shield_proxy?authSource=admin
       - MONGODB_DB_NAME=seo_shield_proxy
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin123}
+      - JWT_SECRET=${JWT_SECRET:-seo-shield-jwt-secret-change-in-production}
     depends_on:
       redis:
         condition: service_healthy

@@ -83,7 +83,22 @@ export class ShadowDOMExtractor {
 
     try {
       const extractionScript = this.getExtractionScript();
-      const result = await page.evaluate(extractionScript, this.config);
+      const result = await page.evaluate(extractionScript, this.config) as {
+        lightDOM: string;
+        shadowDOMs: Array<{
+          host: string;
+          hostSelector: string;
+          content: string;
+          slots: string[];
+          cssVariables: Record<string, string>;
+          styles: string;
+        }>;
+        flattened: string;
+        extractedElements: number;
+        cssVariables: string[];
+        maxDepth: number;
+        warnings: string[];
+      };
 
       // Post-process results
       const extractedContent: ExtractedContent = {
@@ -392,7 +407,7 @@ export class ShadowDOMExtractor {
     })(arguments[0], arguments[1]);
     `;
 
-    return await page.evaluate(extractionScript, tagName, elementConfig);
+    return await page.evaluate(extractionScript, tagName, elementConfig) as string[];
   }
 
   /**
@@ -420,7 +435,7 @@ export class ShadowDOMExtractor {
     }
     `;
 
-    return await page.evaluate(script);
+    return await page.evaluate(script) as Record<string, string>;
   }
 
   /**
@@ -434,7 +449,7 @@ export class ShadowDOMExtractor {
     }
     `;
 
-    return await page.evaluate(script);
+    return await page.evaluate(script) as boolean;
   }
 
   /**
@@ -477,7 +492,13 @@ export class ShadowDOMExtractor {
     }
     `;
 
-    return await page.evaluate(script);
+    return await page.evaluate(script) as {
+      totalElements: number;
+      shadowHosts: number;
+      openShadowRoots: number;
+      closedShadowRoots: number;
+      customElements: string[];
+    };
   }
 
   /**

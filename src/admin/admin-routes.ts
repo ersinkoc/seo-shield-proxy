@@ -20,13 +20,14 @@ import { getSEOProtocolsService } from './seo-protocols-service';
 import { broadcastTrafficEvent } from './websocket';
 import { databaseManager } from '../database/database-manager';
 import { ssrEventsStore } from './ssr-events-store';
+import config from '../config';
 
 const router: Router = express.Router();
 
-// JWT Configuration
-const JWT_SECRET = process.env.JWT_SECRET || 'seo-shield-jwt-secret-change-in-production';
+// JWT Configuration - using centralized config
+const JWT_SECRET = config.JWT_SECRET;
 const JWT_EXPIRY = '24h';
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
+const ADMIN_PASSWORD = config.ADMIN_PASSWORD;
 
 /**
  * API: Login endpoint for form-based authentication
@@ -2036,13 +2037,12 @@ router.post('/audit-logs', authenticate, express.json(), async (req: Request, re
     if (mongoStorage) {
       await mongoStorage.logAudit({
         action,
-        details: details || '',
+        message: details || '',
         category,
-        severity,
+        level: severity,
         userId,
-        ipAddress: req.ip || 'unknown',
-        userAgent: req.headers['user-agent'] || '',
-        sessionId: req.headers['session-id'] as string || 'unknown'
+        ip: req.ip || 'unknown',
+        userAgent: req.headers['user-agent'] || ''
       });
 
       res.json({
@@ -2139,14 +2139,13 @@ router.post('/error-logs', authenticate, express.json(), async (req: Request, re
 
     if (mongoStorage) {
       await mongoStorage.logError({
-        message,
+        error: message,
         stack,
-        category,
-        severity,
-        url,
+        context,
+        path: url,
+        ip: req.ip || 'unknown',
         userAgent: req.headers['user-agent'] || '',
-        ipAddress: req.ip || 'unknown',
-        context
+        resolved: false
       });
 
       res.json({

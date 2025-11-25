@@ -55,7 +55,7 @@ http://localhost:8190/shieldapi/stats
 # ✅ Admin Dashboard (Port 3001)
 # React admin interface
 http://localhost:3001
-# Login: admin / seo-shield-2025
+# Login: admin123
 ```
 
 ### 🧪 **Quick Testing Commands**
@@ -185,11 +185,34 @@ See [.env.example](.env.example) for all options.
 
 ## 📚 Documentation
 
+### Getting Started
+
 - [START.md](START.md) - Complete setup guide
 - [.env.example](.env.example) - Configuration reference
-- [docs/debug-mode.md](docs/debug-mode.md) - Debug mode & render preview guide
-- [docs/concurrency-control.md](docs/concurrency-control.md) - Queue management & performance
+
+### Architecture & Configuration
+
+- [docs/architecture.md](docs/architecture.md) - System architecture overview
+- [docs/configuration.md](docs/configuration.md) - Complete configuration reference
+- [docs/api-reference.md](docs/api-reference.md) - Admin API endpoints
+
+### Features
+
+- [docs/bot-detection.md](docs/bot-detection.md) - Bot detection system
+- [docs/admin-dashboard.md](docs/admin-dashboard.md) - Admin panel guide
+- [docs/seo-protocols.md](docs/seo-protocols.md) - Advanced SEO optimizations
+
+### Caching & Performance
+
 - [docs/redis-cache.md](docs/redis-cache.md) - Redis cache integration
+- [docs/stale-while-revalidate.md](docs/stale-while-revalidate.md) - SWR caching strategy
+- [docs/concurrency-control.md](docs/concurrency-control.md) - Queue management & performance
+
+### Debugging & Monitoring
+
+- [docs/debug-mode.md](docs/debug-mode.md) - Debug mode & render preview
+- [docs/status-code-detection.md](docs/status-code-detection.md) - HTTP status code handling
+- [docs/mongodb.md](docs/mongodb.md) - MongoDB integration & analytics
 
 ## 📝 License
 

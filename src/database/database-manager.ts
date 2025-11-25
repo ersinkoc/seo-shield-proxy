@@ -77,6 +77,10 @@ export class DatabaseManager {
     if (!this.db) return;
 
     try {
+      // NOTE: These indexes are also created by migrations (docker/migration/run-migrations.js)
+      // This is a fallback for development environments without running migrations
+      // MongoDB createIndexes is idempotent - existing indexes are skipped gracefully
+
       // Traffic metrics indexes for efficient queries
       await this.db.collection('traffic_metrics').createIndexes([
         { key: { timestamp: -1 } }, // For time-based queries

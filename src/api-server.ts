@@ -10,13 +10,10 @@ import configManager from './admin/config-manager';
 import { adminRateLimiter } from './middleware/rate-limiter';
 import { initializeWebSocket } from './admin/websocket';
 import { databaseManager } from './database/database-manager';
-import dotenv from 'dotenv';
-
-// Load environment variables
-dotenv.config();
+import config from './config';
 
 const app = express();
-const PORT = parseInt(process.env.API_PORT || '8190', 10);
+const PORT = config.API_PORT;
 
 // Basic middleware
 app.use(express.json({ limit: '10mb' }));
