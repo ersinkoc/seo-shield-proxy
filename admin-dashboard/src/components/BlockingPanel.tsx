@@ -49,8 +49,8 @@ export default function BlockingPanel() {
     try {
       setLoading(true);
       const [rulesResponse, statsResponse] = await Promise.all([
-        apiCall('/api/blocking/rules'),
-        apiCall('/api/blocking/stats')
+        apiCall('/blocking/rules'),
+        apiCall('/blocking/stats')
       ]);
 
       if (rulesResponse.ok && statsResponse.ok) {
@@ -72,7 +72,6 @@ export default function BlockingPanel() {
     try {
       const response = await apiCall(`/blocking/rules/${ruleId}/toggle`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
       });
       if (response.ok) {
         fetchBlockingData();
@@ -111,9 +110,8 @@ export default function BlockingPanel() {
     }
 
     try {
-      const response = await apiCall('/api/blocking/rules', {
+      const response = await apiCall('/blocking/rules', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newRule),
       });
       if (response.ok) {
@@ -125,9 +123,11 @@ export default function BlockingPanel() {
           action: 'block',
         });
         fetchBlockingData();
+        addNotification('Blocking rule added successfully', 'success');
       }
     } catch (error) {
       console.error('Failed to add rule:', error);
+      addNotification('Failed to add blocking rule', 'error');
     }
   };
 

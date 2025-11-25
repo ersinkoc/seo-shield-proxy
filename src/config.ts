@@ -13,6 +13,8 @@ export interface Config {
   CACHE_TTL: number;
   CACHE_TYPE: 'memory' | 'redis';
   REDIS_URL: string;
+  MONGODB_URL: string;
+  MONGODB_DB_NAME: string;
   PUPPETEER_TIMEOUT: number;
   MAX_CONCURRENT_RENDERS: number;
   NODE_ENV: string;
@@ -312,11 +314,17 @@ const config: Config = {
   // Cache TTL in seconds - default to 1 hour
   CACHE_TTL: parseInt(process.env['CACHE_TTL'] || '3600', 10) || 3600,
 
-  // Cache type - memory or redis (temporarily forced to memory)
-  CACHE_TYPE: 'memory' as 'memory' | 'redis', // (process.env['CACHE_TYPE'] === 'redis' ? 'redis' : 'memory') as 'memory' | 'redis',
+  // Cache type - memory or redis
+  CACHE_TYPE: (process.env['CACHE_TYPE'] === 'redis' ? 'redis' : 'memory') as 'memory' | 'redis',
 
   // Redis connection URL
   REDIS_URL: process.env['REDIS_URL'] || 'redis://localhost:6379',
+
+  // MongoDB connection URL
+  MONGODB_URL: process.env['MONGODB_URL'] || 'mongodb://localhost:27017',
+
+  // MongoDB database name
+  MONGODB_DB_NAME: process.env['MONGODB_DB_NAME'] || 'seo_shield_proxy',
 
   // Puppeteer timeout in milliseconds - default to 30 seconds
   PUPPETEER_TIMEOUT: parseInt(process.env['PUPPETEER_TIMEOUT'] || '30000', 10) || 30000,
@@ -372,6 +380,8 @@ console.log(`   CACHE_TYPE: ${config.CACHE_TYPE}`);
 if (config.CACHE_TYPE === 'redis') {
   console.log(`   REDIS_URL: ${config.REDIS_URL}`);
 }
+console.log(`   MONGODB_URL: ${config.MONGODB_URL}`);
+console.log(`   MONGODB_DB_NAME: ${config.MONGODB_DB_NAME}`);
 console.log(`   CACHE_TTL: ${config.CACHE_TTL}s`);
 console.log(`   PUPPETEER_TIMEOUT: ${config.PUPPETEER_TIMEOUT}ms`);
 console.log(`   MAX_CONCURRENT_RENDERS: ${config.MAX_CONCURRENT_RENDERS}`);

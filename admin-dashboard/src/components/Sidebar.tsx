@@ -29,6 +29,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, isConnected, 
     { id: 'forensics', icon: '🕵️', label: 'Forensics', category: 'Security' },
 
     // Tools
+    { id: 'cache-analytics', icon: '📊', label: 'Cache Analytics', category: 'Tools' },
     { id: 'simulation', icon: '🤖', label: 'UA Simulator', category: 'Tools' },
     { id: 'config', icon: '⚙️', label: 'Config', category: 'Tools' },
   ];

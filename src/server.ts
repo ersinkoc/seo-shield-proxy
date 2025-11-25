@@ -18,10 +18,31 @@ import {
   generalRateLimiter,
   ssrRateLimiter
 } from './middleware/rate-limiter';
+import { databaseManager } from './database/database-manager';
+import { AdvancedBotDetector } from './bot-detection/advanced-bot-detector';
 
-// Traffic event sender to API server
+// Traffic event sender to API server and database
 async function sendTrafficEvent(trafficData: any) {
   try {
+    // Store in MongoDB if available
+    const mongoStorage = databaseManager.getMongoStorage();
+    if (mongoStorage) {
+      await mongoStorage.storeTrafficMetric({
+        timestamp: trafficData.timestamp || Date.now(),
+        method: trafficData.method || 'GET',
+        path: trafficData.path || '/',
+        ip: trafficData.ip || 'unknown',
+        userAgent: trafficData.userAgent || '',
+        referer: trafficData.headers?.referer || '',
+        isBot: trafficData.isBot || false,
+        responseTime: 0, // Not measured at this level
+        statusCode: 200,
+        responseSize: 0,
+      });
+      console.log('💾 Traffic event stored in MongoDB');
+    }
+
+    // Also send to API server for real-time updates
     console.log('📤 Sending traffic event to API server:', trafficData.path);
     const response = await fetch('http://localhost:8190/shieldapi/traffic-events', {
       method: 'POST',
@@ -44,6 +65,9 @@ async function sendTrafficEvent(trafficData: any) {
 
 const app = express();
 const httpServer: HttpServer = createServer(app);
+
+// Initialize advanced bot detector
+let botDetector: AdvancedBotDetector | null = null;
 
 // Apply general rate limiting
 app.use(generalRateLimiter);
@@ -75,20 +99,61 @@ function isStaticAsset(path: string): boolean {
 app.use(async (req: Request, res: Response, next: NextFunction) => {
   const userAgent = req.headers['user-agent'] || '';
   const requestPath = req.path;
-  const isBotRequest = isbot(userAgent);
+  const clientIP = req.ip || req.connection.remoteAddress || 'unknown';
+
+  // Use advanced bot detection if available, fallback to basic isbot()
+  let botDetection;
+  if (botDetector) {
+    try {
+      botDetection = await botDetector.detectBot({
+        userAgent,
+        ip: clientIP,
+        headers: req.headers as Record<string, string>,
+        referer: req.headers.referer,
+        path: requestPath,
+        method: req.method
+      });
+    } catch (error) {
+      console.warn('⚠️  Advanced bot detection failed, falling back to basic:', error);
+      botDetection = {
+        isBot: isbot(userAgent),
+        confidence: isbot(userAgent) ? 0.8 : 0.2,
+        botType: isbot(userAgent) ? 'unknown' : 'human',
+        rulesMatched: [],
+        action: isbot(userAgent) ? 'render' : 'allow' as const
+      };
+    }
+  } else {
+    botDetection = {
+      isBot: isbot(userAgent),
+      confidence: isbot(userAgent) ? 0.7 : 0.3,
+      botType: isbot(userAgent) ? 'unknown' : 'human',
+      rulesMatched: [],
+      action: isbot(userAgent) ? 'render' : 'allow' as const
+    };
+  }
+
+  const isBotRequest = botDetection.isBot;
   const isRenderPreview = req.query.render === 'preview' || req.query.render === 'true';
 
   console.log(`📥 ${req.method} ${requestPath} - UA: ${userAgent.length > 100 ? `${userAgent.substring(0, 97)}...` : userAgent}`);
-  console.log(`🤌 Is Bot: ${isBotRequest}`);
+  console.log(`🤌 Is Bot: ${isBotRequest} (${botDetection.botType}, confidence: ${(botDetection.confidence * 100).toFixed(1)}%)`);
+  if (botDetector && botDetection.rulesMatched.length > 0) {
+    console.log(`🎯 Rules matched: ${botDetection.rulesMatched.join(', ')}`);
+  }
 
   // Send traffic event to API server for real-time monitoring
   sendTrafficEvent({
     method: req.method,
     path: requestPath,
     userAgent: userAgent,
-    ip: req.ip || req.connection.remoteAddress,
+    ip: clientIP,
     timestamp: Date.now(),
     isBot: isBotRequest,
+    botType: botDetection.botType,
+    botConfidence: botDetection.confidence,
+    botRulesMatched: botDetection.rulesMatched,
+    botAction: botDetection.action,
     headers: {
       'user-agent': userAgent,
       'referer': req.headers.referer,
@@ -293,24 +358,69 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
   res.status(500).send('Internal Server Error');
 });
 
+// Initialize database connection
+async function initializeDatabase() {
+  try {
+    const connected = await databaseManager.connect();
+    if (connected) {
+      console.log('✅ MongoDB connected for traffic logging');
+
+      // Initialize advanced bot detector with database support
+      const mongoStorage = databaseManager.getMongoStorage();
+      if (mongoStorage) {
+        botDetector = new AdvancedBotDetector(mongoStorage);
+        console.log('✅ Advanced bot detector initialized with database support');
+      }
+    } else {
+      console.warn('⚠️  MongoDB connection failed, traffic events will not be persisted');
+      console.warn('⚠️  Advanced bot detector not initialized - using basic isbot()');
+    }
+  } catch (error) {
+    console.error('❌ Database initialization error:', error);
+    console.warn('⚠️  Advanced bot detector not initialized due to database error - using basic isbot()');
+  }
+}
+
 // Start server
-httpServer.listen(config.PORT, '0.0.0.0', () => {
-  console.log('╔═══════════════════════════════════════════════════════════╗');
-  console.log('║               SEO Shield Proxy (Ultra-Clean)           ║');
-  console.log('╚═══════════════════════════════════════════════════════════╝');
-  console.log('');
-  console.log(`🚀 Ultra-clean proxy server running on port ${config.PORT}`);
-  console.log(`🎯 Target URL: ${config.TARGET_URL}`);
-  console.log('');
-  console.log('🎯 Ultra-clean architecture: Proxy, API, and Admin are completely separate');
-  console.log(`  - API Server: http://localhost:8190/shieldapi/*`);
-  console.log('');
-  console.log('Bot detection: ✅ Active');
-  console.log('SSR rendering: ✅ Active');
-  console.log('Reverse proxy: ✅ Active');
-  console.log('Caching: ✅ Active');
-  console.log('Rate limiting: ✅ Active');
-  console.log('');
+initializeDatabase().then(() => {
+  httpServer.listen(config.PORT, '0.0.0.0', () => {
+    console.log('╔═══════════════════════════════════════════════════════════╗');
+    console.log('║               SEO Shield Proxy (Ultra-Clean)           ║');
+    console.log('╚═══════════════════════════════════════════════════════════╝');
+    console.log('');
+    console.log(`🚀 Ultra-clean proxy server running on port ${config.PORT}`);
+    console.log(`🎯 Target URL: ${config.TARGET_URL}`);
+    console.log(`💾 MongoDB: ${databaseManager.isDbConnected() ? 'Connected' : 'Disconnected'}`);
+    console.log('🎯 Ultra-clean architecture: Proxy, API, and Admin are completely separate');
+    console.log(`  - API Server: http://localhost:8190/shieldapi/*`);
+    console.log('');
+    console.log('Bot detection: ✅ Active');
+    console.log('SSR rendering: ✅ Active');
+    console.log('Reverse proxy: ✅ Active');
+    console.log('Caching: ✅ Active');
+    console.log('Rate limiting: ✅ Active');
+    console.log('');
+  });
+}).catch((error) => {
+  console.error('❌ Failed to initialize database:', error);
+  // Still start server even if database fails
+  httpServer.listen(config.PORT, '0.0.0.0', () => {
+    console.log('╔═══════════════════════════════════════════════════════════╗');
+    console.log('║               SEO Shield Proxy (Ultra-Clean)           ║');
+    console.log('╚═══════════════════════════════════════════════════════════╝');
+    console.log('');
+    console.log(`🚀 Ultra-clean proxy server running on port ${config.PORT} (Database fallback mode)`);
+    console.log(`🎯 Target URL: ${config.TARGET_URL}`);
+    console.log('🎯 Ultra-clean architecture: Proxy, API, and Admin are completely separate');
+    console.log(`  - API Server: http://localhost:8190/shieldapi/*`);
+    console.log('');
+    console.log('Bot detection: ✅ Active');
+    console.log('SSR rendering: ✅ Active');
+    console.log('Reverse proxy: ✅ Active');
+    console.log('Caching: ✅ Active');
+    console.log('Rate limiting: ✅ Active');
+    console.log('');
+  });
 });
 
 export default app;

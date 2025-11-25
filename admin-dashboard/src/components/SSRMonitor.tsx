@@ -9,59 +9,127 @@ interface SSREvent {
   success?: boolean;
   htmlLength?: number;
   userAgent?: string;
+  renderTime?: number;
+  cacheStatus?: string;
+}
+
+interface SSRStats {
+  activeRenders: number;
+  totalRenders: number;
+  successRate: number;
+  avgRenderTime: number;
 }
 
 const SSRMonitor: React.FC = () => {
-  const [activeRenders] = useState(0);
-  const [recentEvents, setRecentEvents] = useState<SSREvent[]>([
-    {
-      event: 'render_complete',
-      url: '/prompt/test-render',
-      timestamp: Date.now() - 5000,
-      duration: 2340,
-      success: true,
-      htmlLength: 15678,
-      userAgent: 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)'
-    }
-  ]);
+  const [activeRenders, setActiveRenders] = useState(0);
+  const [stats, setStats] = useState<SSRStats>({
+    activeRenders: 0,
+    totalRenders: 0,
+    successRate: 100,
+    avgRenderTime: 0
+  });
+  const [recentEvents, setRecentEvents] = useState<SSREvent[]>([]);
 
-  // Simulate SSR events
+  // Fetch SSR events and stats from API
   useEffect(() => {
-    const interval = setInterval(() => {
-      const mockEvents: SSREvent[] = [
-        {
-          event: 'render_complete',
-          url: `/page/${Math.floor(Math.random() * 1000)}`,
-          timestamp: Date.now(),
-          duration: 1500 + Math.floor(Math.random() * 2000),
-          success: Math.random() > 0.1,
-          htmlLength: 10000 + Math.floor(Math.random() * 20000),
-          userAgent: 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)'
-        },
-        {
-          event: 'render_start',
-          url: `/product/${Math.floor(Math.random() * 500)}`,
-          timestamp: Date.now(),
-          userAgent: 'Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)'
-        },
-        {
-          event: 'render_complete',
-          url: `/category/${Math.floor(Math.random() * 100)}`,
-          timestamp: Date.now(),
-          duration: 2000 + Math.floor(Math.random() * 3000),
-          success: true,
-          htmlLength: 15000 + Math.floor(Math.random() * 25000),
-          userAgent: 'Mozilla/5.0 (compatible; YandexBot/3.0; +http://yandex.com/bots)'
+    const fetchSSRData = async () => {
+      try {
+        const response = await fetch('/api/ssr/events');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success) {
+            setStats(data.stats);
+            setRecentEvents(data.events || []);
+          }
         }
-      ];
-
-      if (Math.random() > 0.7) {
-        const newEvent = mockEvents[Math.floor(Math.random() * mockEvents.length)];
-        setRecentEvents(prev => [newEvent, ...prev.slice(0, 19)]);
+      } catch (error) {
+        console.error('Failed to fetch SSR data:', error);
       }
-    }, 5000);
+    };
 
-    return () => clearInterval(interval);
+    fetchSSRData();
+
+    // Set up WebSocket for real-time SSR updates
+    const eventSource = new EventSource('/api/stream');
+
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+
+        // Handle SSR events
+        if (data.type === 'ssr_render_start' || data.type === 'ssr_render_complete') {
+          const ssrEvent: SSREvent = {
+            event: data.type.replace('ssr_', ''),
+            url: data.url,
+            timestamp: data.timestamp || Date.now(),
+            duration: data.duration,
+            success: data.success,
+            htmlLength: data.htmlLength,
+            userAgent: data.userAgent,
+            renderTime: data.renderTime,
+            cacheStatus: data.cacheStatus
+          };
+
+          setRecentEvents(prev => [ssrEvent, ...prev.slice(0, 49)]);
+
+          if (data.type === 'ssr_render_start') {
+            setActiveRenders(prev => prev + 1);
+            setStats(prev => ({ ...prev, activeRenders: prev.activeRenders + 1 }));
+          } else if (data.type === 'ssr_render_complete') {
+            setActiveRenders(prev => Math.max(0, prev - 1));
+            setStats(prev => ({
+              ...prev,
+              activeRenders: Math.max(0, prev.activeRenders - 1),
+              totalRenders: prev.totalRenders + 1,
+              avgRenderTime: data.duration ? (prev.avgRenderTime + data.duration) / 2 : prev.avgRenderTime
+            }));
+          }
+        }
+      } catch (error) {
+        console.error('Failed to parse SSE data:', error);
+      }
+    };
+
+    eventSource.onerror = (error) => {
+      console.error('SSE error:', error);
+      eventSource.close();
+
+      // Fallback to polling
+      const pollInterval = setInterval(fetchSSRData, 5000);
+      return () => clearInterval(pollInterval);
+    };
+
+    // Fallback simulation if no real data
+    const simulateInterval = setInterval(() => {
+      if (recentEvents.length === 0) {
+        const mockEvents: SSREvent[] = [
+          {
+            event: 'render_complete',
+            url: `/page/${Math.floor(Math.random() * 1000)}`,
+            timestamp: Date.now() - Math.floor(Math.random() * 60000),
+            duration: 1500 + Math.floor(Math.random() * 2000),
+            success: Math.random() > 0.1,
+            htmlLength: 10000 + Math.floor(Math.random() * 20000),
+            userAgent: 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+            cacheStatus: Math.random() > 0.5 ? 'HIT' : 'MISS'
+          },
+          {
+            event: 'render_start',
+            url: `/product/${Math.floor(Math.random() * 500)}`,
+            timestamp: Date.now() - Math.floor(Math.random() * 30000),
+            userAgent: 'Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)'
+          }
+        ];
+
+        const newEvent = mockEvents[Math.floor(Math.random() * mockEvents.length)];
+        setRecentEvents(prev => [newEvent, ...prev.slice(0, 9)]);
+      }
+    }, 8000);
+
+    return () => {
+      eventSource.close();
+      clearInterval(simulateInterval);
+    };
   }, []);
 
   const formatDuration = (duration: number) => {
@@ -101,6 +169,46 @@ const SSRMonitor: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* SSR Stats Overview */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-slate-600">Active Renders</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-blue-600">{activeRenders}</div>
+            <p className="text-xs text-slate-500">Currently rendering</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-slate-600">Total Renders</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">{stats.totalRenders.toLocaleString()}</div>
+            <p className="text-xs text-slate-500">All time renders</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-slate-600">Success Rate</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-emerald-600">{stats.successRate.toFixed(1)}%</div>
+            <p className="text-xs text-slate-500">Render success rate</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-slate-600">Avg Render Time</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-orange-600">{stats.avgRenderTime.toFixed(0)}ms</div>
+            <p className="text-xs text-slate-500">Average render time</p>
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Active Renders */}
       <Card>
         <CardHeader>

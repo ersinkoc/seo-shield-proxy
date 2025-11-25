@@ -9,6 +9,7 @@ import adminRoutes from './admin/admin-routes';
 import configManager from './admin/config-manager';
 import { adminRateLimiter } from './middleware/rate-limiter';
 import { initializeWebSocket } from './admin/websocket';
+import { databaseManager } from './database/database-manager';
 import dotenv from 'dotenv';
 
 // Load environment variables
@@ -38,12 +39,15 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 app.use('/shieldapi', adminRoutes);
 
 // Health check endpoint
-app.get('/health', (req: Request, res: Response) => {
+app.get('/health', async (req: Request, res: Response) => {
+  const dbHealth = await databaseManager.healthCheck();
   res.json({
     status: 'ok',
     service: 'seo-shield-api',
     port: PORT,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    database: dbHealth.connected ? 'connected' : 'disconnected',
+    databaseStats: dbHealth.stats || null
   });
 });
 
@@ -65,13 +69,32 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
   });
 });
 
+// Initialize database connection
+async function initializeDatabase() {
+  try {
+    const connected = await databaseManager.connect();
+    if (connected) {
+      console.log('✅ MongoDB storage initialized');
+
+      // Make database manager available to admin routes
+      (global as any).databaseManager = databaseManager;
+    } else {
+      console.warn('⚠️  MongoDB connection failed, falling back to memory-based storage');
+    }
+  } catch (error) {
+    console.error('❌ Database initialization error:', error);
+  }
+}
+
 // Start server
 const server = createServer(app);
 
 // Initialize WebSocket server
 initializeWebSocket(server);
 
-server.listen(PORT, '0.0.0.0', () => {
+// Initialize database before starting server
+initializeDatabase().then(() => {
+  server.listen(PORT, '0.0.0.0', () => {
   console.log('╔═══════════════════════════════════════════════════════════╗');
   console.log('║                 SEO Shield API Server                 ║');
   console.log('╚═══════════════════════════════════════════════════════════╝');
@@ -81,6 +104,21 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log('📡 WebSocket endpoint: /socket.io');
   console.log('💚 Health check: /health');
   console.log('');
+});
+}).catch((error) => {
+  console.error('❌ Failed to initialize database:', error);
+  // Still start server even if database fails
+  server.listen(PORT, '0.0.0.0', () => {
+    console.log('╔═══════════════════════════════════════════════════════════╗');
+    console.log('║                 SEO Shield API Server                 ║');
+    console.log('╚═══════════════════════════════════════════════════════════╝');
+    console.log('');
+    console.log(`🚀 API Server running on port ${PORT} (Database fallback mode)`);
+    console.log('🎯 Admin API endpoints: /shieldapi/*');
+    console.log('📡 WebSocket endpoint: /socket.io');
+    console.log('💚 Health check: /health');
+    console.log('');
+  });
 });
 
 export default app;

@@ -1,0 +1,39 @@
+# SEO Shield Admin Dashboard
+FROM node:18-alpine AS builder
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files
+COPY admin-dashboard/package*.json ./
+
+# Install dependencies
+RUN npm ci && npm cache clean --force
+
+# Copy source code
+COPY admin-dashboard/ .
+
+# Build the React app
+RUN npm run build
+
+# Production stage
+FROM nginx:alpine AS production
+
+# Copy custom nginx configuration
+COPY docker/nginx/admin-dashboard.conf /etc/nginx/conf.d/default.conf
+
+# Copy built application
+COPY --from=builder /app/dist /usr/share/nginx/html
+
+# Add health check
+RUN apk add --no-cache curl
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD curl -f http://localhost || exit 1
+
+# Expose port
+EXPOSE 3001
+
+# Start nginx
+CMD ["nginx", "-g", "daemon off;"]

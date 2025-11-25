@@ -1,45 +1,58 @@
 version: '3.8'
 
 services:
-  # Redis - Persistent cache with proper configuration
+  # Redis - External port access with enhanced security
   redis:
     image: redis:7-alpine
-    container_name: seo-shield-redis
+    container_name: seo-shield-redis-external
     restart: unless-stopped
     ports:
-      - "${REDIS_PORT:-6379}:6379"
+      - "${REDIS_PORT:-6380}:6379"
     volumes:
       - redis-data:/data
       - ./docker/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
     command: redis-server /usr/local/etc/redis/redis.conf
     networks:
-      - seo-shield-network
+      - seo-shield-external
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 3s
       retries: 5
       start_period: 10s
+    # Redis security for external access
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-your_redis_password_here}
+    # Add authentication for external access
+    command: >
+      sh -c "
+        if [ -n \"$$REDIS_PASSWORD\" ]; then
+          redis-server --requirepass $$REDIS_PASSWORD /usr/local/etc/redis/redis.conf;
+        else
+          redis-server /usr/local/etc/redis/redis.conf;
+        fi
+      "
 
-  # MongoDB - Primary database with authentication and persistence
+  # MongoDB - External port access with enhanced security
   mongodb:
     image: mongo:7
-    container_name: seo-shield-mongodb
+    container_name: seo-shield-mongodb-external
     restart: unless-stopped
     ports:
-      - "${MONGODB_PORT:-27017}:27017"
+      - "${MONGODB_PORT:-27018}:27017"
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME:-admin}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-admin123}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-your_mongo_password_here}
       MONGO_INITDB_DATABASE: ${MONGODB_DB_NAME:-seo_shield_proxy}
     volumes:
       - mongodb-data:/data/db
       - mongodb-config:/data/configdb
       - ./docker/mongo/init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
-      - ./docker/mongo/mongod.conf:/etc/mongod.conf:ro
+      - ./docker/mongo/mongod-external.conf:/etc/mongod.conf:ro
+      - ./docker/mongo/mongod-auth.js:/docker-entrypoint-initdb.d/mongod-auth.js:ro
     command: mongod --config /etc/mongod.conf
     networks:
-      - seo-shield-network
+      -seo-shield-external
     healthcheck:
       test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
       interval: 10s
@@ -47,12 +60,12 @@ services:
       retries: 5
       start_period: 15s
 
-  # SEO Shield Proxy - Main proxy server with database integration
+  # SEO Shield Proxy - Main proxy server with external database connections
   seo-proxy:
     build:
       context: .
       dockerfile: docker/Dockerfile.proxy
-    container_name: seo-shield-proxy
+    container_name: seo-shield-proxy-external
     restart: unless-stopped
     ports:
       - "${PROXY_PORT:-8080}:8080"
@@ -61,8 +74,9 @@ services:
       - PORT=8080
       - TARGET_URL=${TARGET_URL:-https://generated.gallery}
       - CACHE_TYPE=${CACHE_TYPE:-redis}
-      - REDIS_URL=redis://redis:6379
-      - MONGODB_URL=mongodb://admin:admin123@mongodb:27017/seo_shield_proxy?authSource=admin
+      # External database connections
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-}@redis:6379
+      - MONGODB_URL=mongodb://${MONGO_ROOT_USERNAME:-admin}:${MONGO_ROOT_PASSWORD:-your_mongo_password_here}@mongodb:27017/seo_shield_proxy?authSource=admin
       - MONGODB_DB_NAME=seo_shield_proxy
       - CACHE_TTL=${CACHE_TTL:-3600}
       - PUPPETEER_TIMEOUT=${PUPPETEER_TIMEOUT:-30000}
@@ -77,7 +91,7 @@ services:
       mongodb:
         condition: service_healthy
     networks:
-      - seo-shield-network
+      - seo-shield-external
     volumes:
       - ./src/admin/runtime-config.json:/app/src/admin/runtime-config.json:ro
       - ./logs:/app/logs
@@ -89,20 +103,21 @@ services:
       retries: 3
       start_period: 40s
 
-  # SEO Shield API Server - API-only server with database integration
+  # SEO Shield API Server - API-only server with external database connections
   seo-api:
     build:
       context: .
       dockerfile: docker/Dockerfile.api
-    container_name: seo-shield-api
+    container_name: seo-shield-api-external
     restart: unless-stopped
     ports:
       - "${API_PORT:-8190}:8190"
     environment:
       - NODE_ENV=${NODE_ENV:-production}
       - API_PORT=8190
-      - REDIS_URL=redis://redis:6379
-      - MONGODB_URL=mongodb://admin:admin123@mongodb:27017/seo_shield_proxy?authSource=admin
+      # External database connections
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-}@redis:6379
+      - MONGODB_URL=mongodb://${MONGO_ROOT_USERNAME:-admin}:${MONGO_ROOT_PASSWORD:-your_mongo_password_here}@mongodb:27017/seo_shield_proxy?authSource=admin
       - MONGODB_DB_NAME=seo_shield_proxy
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin123}
     depends_on:
@@ -111,7 +126,7 @@ services:
       mongodb:
         condition: service_healthy
     networks:
-      - seo-shield-network
+      - seo-shield-external
     volumes:
       - ./logs:/app/logs
     healthcheck:
@@ -126,7 +141,7 @@ services:
     build:
       context: ./admin-dashboard
       dockerfile: ../docker/Dockerfile.admin
-    container_name: seo-shield-admin
+    container_name: seo-shield-admin-external
     restart: unless-stopped
     ports:
       - "${ADMIN_PORT:-3001}:3001"
@@ -137,7 +152,7 @@ services:
       seo-api:
         condition: service_healthy
     networks:
-      - seo-shield-network
+      - seo-shield-external
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3001"]
       interval: 30s
@@ -145,34 +160,34 @@ services:
       retries: 3
       start_period: 30s
 
-  # Database Migration Service - One-time execution for setup
+  # Database Migration Service - One-time execution for external setup
   db-migration:
     build:
       context: .
       dockerfile: docker/Dockerfile.migration
-    container_name: seo-shield-migration
+    container_name: seo-shield-migration-external
     environment:
-      - MONGODB_URL=mongodb://admin:admin123@mongodb:27017/seo_shield_proxy?authSource=admin
+      - MONGODB_URL=mongodb://${MONGO_ROOT_USERNAME:-admin}:${MONGO_ROOT_PASSWORD:-your_mongo_password_here}@mongodb:27017/seo_shield_proxy?authSource=admin
       - MONGODB_DB_NAME=seo_shield_proxy
     depends_on:
       mongodb:
         condition: service_healthy
     networks:
-      - seo-shield-network
+      - seo-shield-external
     profiles:
       - migration  # Only run when explicitly requested
     command: ["sh", "-c", "npm run migrate && npm run seed"]
 
-  # Nginx Reverse Proxy - Production-ready load balancing
+  # Optional: Nginx Reverse Proxy for external access
   nginx:
     image: nginx:alpine
-    container_name: seo-shield-nginx
+    container_name: seo-shield-nginx-external
     restart: unless-stopped
     ports:
       - "${NGINX_PORT:-80}:80"
       - "${NGINX_SSL_PORT:-443}:443"
     volumes:
-      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/nginx/nginx-external.conf:/etc/nginx/nginx.conf:ro
       - ./docker/nginx/conf.d:/etc/nginx/conf.d:ro
       - ./docker/ssl:/etc/nginx/ssl:ro
       - nginx-logs:/var/log/nginx
@@ -181,7 +196,7 @@ services:
       - seo-api
       - admin-dashboard
     networks:
-      - seo-shield-network
+      - seo-shield-external
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
       interval: 30s
@@ -191,11 +206,11 @@ services:
       - production  # Only include in production mode
 
 networks:
-  seo-shield-network:
+  seo-shield-external:
     driver: bridge
     ipam:
       config:
-        - subnet: 172.20.0.0/16
+        - subnet: 172.21.0.0/16
 
 volumes:
   redis-data:

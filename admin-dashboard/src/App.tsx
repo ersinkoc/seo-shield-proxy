@@ -17,6 +17,7 @@ import SimulationConsole from './components/SimulationConsole';
 import SEOProtocolsPanel from './components/SEOProtocolsPanel';
 import RealTimeStream from './components/RealTimeStream';
 import SSRMonitor from './components/SSRMonitor';
+import CacheAnalytics from './components/CacheAnalytics';
 import Sidebar from './components/Sidebar';
 import Notifications from './components/Notifications';
 
@@ -99,6 +100,8 @@ function App() {
         {activeTab === 'realtime' && <RealTimeStream />}
 
         {activeTab === 'ssr' && <SSRMonitor />}
+
+        {activeTab === 'cache-analytics' && <CacheAnalytics />}
 
         {activeTab === 'config' && <ConfigPanel />}
           </main>

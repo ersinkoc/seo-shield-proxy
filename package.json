@@ -30,7 +30,18 @@
     "format": "prettier --write src/",
     "format:check": "prettier --check src/",
     "type-check": "tsc --noEmit",
-    "analyze:bundle": "npm run build && npx bundlesize"
+    "analyze:bundle": "npm run build && npx bundlesize",
+    "migrate": "node docker/migration/run-migrations.js",
+    "seed": "node docker/migration/run-migrations.js",
+    "db:setup": "npm run migrate && npm run seed",
+    "docker:build": "docker-compose build",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f",
+    "docker:migrate": "docker-compose run --rm db-migration",
+    "docker:prod": "docker-compose --profile production up -d",
+    "docker:dev": "docker-compose up -d redis mongodb",
+    "docker:clean": "docker-compose down -v --remove-orphans"
   },
   "keywords": [
     "seo",
@@ -45,6 +56,8 @@
   "dependencies": {
     "@bull-board/api": "^5.8.0",
     "@bull-board/ui": "^5.8.0",
+    "@types/mongodb": "^4.0.6",
+    "@types/redis": "^4.0.10",
     "bullmq": "^4.12.0",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
@@ -52,9 +65,11 @@
     "http-proxy-middleware": "^3.0.0",
     "ioredis": "^5.8.2",
     "isbot": "^5.1.0",
+    "mongodb": "^7.0.0",
     "node-cache": "^5.1.2",
     "puppeteer": "^24.31.0",
     "puppeteer-cluster": "^0.25.0",
+    "redis": "^5.10.0",
     "sharp": "^0.33.5",
     "socket.io": "^4.7.2",
     "xxhash": "^0.3.0"

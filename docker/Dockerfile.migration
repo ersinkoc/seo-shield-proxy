@@ -1,0 +1,36 @@
+# SEO Shield Database Migration Tool
+FROM node:18-alpine
+
+# Install MongoDB client tools
+RUN apk add --no-cache \
+    curl \
+    dumb-init
+
+# Create non-root user
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nodejs -u 1001
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install only necessary dependencies for migrations
+RUN npm ci --only=production && npm cache clean --force
+
+# Copy migration scripts
+COPY src/database/migrations/ ./src/database/migrations/
+COPY src/storage/ ./src/storage/
+COPY src/database/ ./src/database/
+COPY src/config.ts ./src/config.ts
+
+# Create migration entry point
+COPY docker/migration/run-migrations.js ./run-migrations.js
+
+# Switch to non-root user
+USER nodejs
+
+# Start migration
+ENTRYPOINT ["dumb-init", "--"]
+CMD ["node", "run-migrations.js"]

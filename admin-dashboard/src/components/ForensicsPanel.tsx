@@ -96,7 +96,7 @@ const ForensicsPanel = () => {
 
   const fetchStats = async () => {
     try {
-      const response = await apiCall('/api/forensics/stats');
+      const response = await apiCall('/forensics/stats');
       const result = await response.json();
       if (result.success) {
         setStats(result.data);

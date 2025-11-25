@@ -1,5 +1,4 @@
-import Redis from 'ioredis';
-import config from '../config';
+import { createClient, RedisClientType } from 'redis';
 import { ICacheAdapter, CacheStats, CacheEntry } from './cache-interface';
 
 /**
@@ -7,7 +6,7 @@ import { ICacheAdapter, CacheStats, CacheEntry } from './cache-interface';
  * Persistent and scalable cache (survives restarts, shared across pods)
  */
 export class RedisCache implements ICacheAdapter {
-  private client: Redis;
+  private client: RedisClientType;
   private ready = false;
   private stats = {
     hits: 0,
@@ -17,15 +16,14 @@ export class RedisCache implements ICacheAdapter {
   constructor(redisUrl: string) {
     console.log(`🔄 Connecting to Redis: ${redisUrl}`);
 
-    this.client = new Redis(redisUrl, {
-      retryStrategy: (times: number) => {
-        const delay = Math.min(times * 50, 2000);
-        console.log(`⚠️  Redis connection retry ${times}, delay: ${delay}ms`);
-        return delay;
-      },
-      maxRetriesPerRequest: 3,
-      enableReadyCheck: true,
-      lazyConnect: false,
+    this.client = createClient({
+      url: redisUrl,
+      retry_delay_on_failover: 100,
+      max_retries_per_request: 3,
+      socket: {
+        connectTimeout: 5000,
+        lazyConnect: false
+      }
     });
 
     this.client.on('connect', () => {
@@ -34,7 +32,7 @@ export class RedisCache implements ICacheAdapter {
 
     this.client.on('ready', () => {
       this.ready = true;
-      console.log(`✅ Redis cache connected with TTL: ${config.CACHE_TTL}s, SWR enabled`);
+      console.log(`✅ Redis cache connected`);
     });
 
     this.client.on('error', (error: Error) => {
@@ -42,13 +40,18 @@ export class RedisCache implements ICacheAdapter {
       this.ready = false;
     });
 
-    this.client.on('close', () => {
-      console.log('⚠️  Redis connection closed');
+    this.client.on('end', () => {
+      console.log('⚠️  Redis connection ended');
       this.ready = false;
     });
 
     this.client.on('reconnecting', () => {
       console.log('🔄 Redis reconnecting...');
+    });
+
+    // Connect immediately
+    this.client.connect().catch((error) => {
+      console.error('❌ Failed to connect to Redis:', error);
     });
   }
 
@@ -119,7 +122,7 @@ export class RedisCache implements ICacheAdapter {
 
       return {
         value,
-        ttl: remainingTTL,
+        ttl: remainingTTL * 1000, // Convert to ms
         isStale,
       };
     } catch (error) {
@@ -190,16 +193,17 @@ export class RedisCache implements ICacheAdapter {
   /**
    * Async version of set (recommended for Redis)
    */
-  async setAsync(key: string, value: string): Promise<boolean> {
+  async setAsync(key: string, value: string, ttl?: number): Promise<boolean> {
     if (!this.ready) {
       console.warn('⚠️  Redis not ready');
       return false;
     }
 
     try {
+      const cacheTtl = ttl || 3600; // Default 1 hour
       // Set with TTL (EX = seconds)
-      await this.client.setex(key, config.CACHE_TTL, value);
-      console.log(`💾 Cache SET: ${key} (${(value.length / 1024).toFixed(2)} KB, TTL: ${config.CACHE_TTL}s)`);
+      await this.client.setEx(key, cacheTtl, value);
+      console.log(`💾 Cache SET: ${key} (${(value.length / 1024).toFixed(2)} KB, TTL: ${cacheTtl}s)`);
       return true;
     } catch (error) {
       console.error(`❌ Redis SET error for ${key}:`, (error as Error).message);

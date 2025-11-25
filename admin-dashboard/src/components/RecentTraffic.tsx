@@ -9,6 +9,10 @@ interface TrafficEntry {
   action: string;
   cacheStatus?: string;
   userAgent?: string;
+  botType?: string;
+  responseTime?: number;
+  statusCode?: number;
+  renderTime?: number;
 }
 
 export default function RecentTraffic() {
@@ -50,6 +54,50 @@ export default function RecentTraffic() {
         {badge.text}
       </span>
     );
+  };
+
+  const getBotTypeBadge = (botType?: string) => {
+    if (!botType) return null;
+
+    const botColors: Record<string, string> = {
+      'googlebot': '#4285F4',
+      'bingbot': '#00809D',
+      'slurp': '#800080',
+      'duckduckbot': '#DE5833',
+      'baidu': '#2932E1',
+      'yandexbot': '#FFCC00',
+      'facebookexternalhit': '#1877F2',
+      'twitterbot': '#1DA1F2',
+      'other': '#6b7280'
+    };
+
+    const color = botColors[botType.toLowerCase()] || botColors.other;
+    const text = botType.charAt(0).toUpperCase() + botType.slice(1);
+
+    return (
+      <span
+        className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium text-white ml-1"
+        style={{ backgroundColor: color }}
+        title={`Bot type: ${botType}`}
+      >
+        {text}
+      </span>
+    );
+  };
+
+  const getStatusCodeColor = (statusCode?: number) => {
+    if (!statusCode) return 'text-gray-500';
+    if (statusCode >= 200 && statusCode < 300) return 'text-green-600';
+    if (statusCode >= 300 && statusCode < 400) return 'text-yellow-600';
+    if (statusCode >= 400 && statusCode < 500) return 'text-orange-600';
+    if (statusCode >= 500) return 'text-red-600';
+    return 'text-gray-500';
+  };
+
+  const formatResponseTime = (time?: number) => {
+    if (!time) return '-';
+    if (time < 1000) return `${time}ms`;
+    return `${(time / 1000).toFixed(1)}s`;
   };
 
   const getCacheStatus = (status?: string) => {
@@ -96,13 +144,19 @@ export default function RecentTraffic() {
                   Path
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                  Bot
+                  Type
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                   Action
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                  Status
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                   Cache
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                  Response Time
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                   User Agent
@@ -119,16 +173,34 @@ export default function RecentTraffic() {
                     {entry.path}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    {entry.isBot ? '🤖' : '👤'}
+                    <div className="flex items-center gap-1">
+                      {entry.isBot ? '🤖' : '👤'}
+                      {entry.isBot && getBotTypeBadge(entry.botType)}
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
                     {getActionBadge(entry.action)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    <span className={`font-mono text-xs ${getStatusCodeColor(entry.statusCode)}`}>
+                      {entry.statusCode || '-'}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm">
                     {getCacheStatus(entry.cacheStatus)}
                   </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    <span className="text-xs text-slate-600">
+                      {formatResponseTime(entry.responseTime)}
+                    </span>
+                    {entry.renderTime && (
+                      <span className="text-xs text-blue-600 ml-1">
+                        ({entry.renderTime}ms)
+                      </span>
+                    )}
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 max-w-xs truncate">
-                    {entry.userAgent?.substring(0, 50)}...
+                    {entry.userAgent?.substring(0, 60)}...
                   </td>
                 </tr>
               ))}
