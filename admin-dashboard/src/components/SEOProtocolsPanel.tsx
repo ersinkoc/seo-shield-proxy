@@ -35,7 +35,7 @@ export default function SEOProtocolsPanel() {
   const fetchProtocols = async () => {
     try {
       setLoading(true);
-      const response = await apiCall('/api/seo-protocols/status');
+      const response = await apiCall('/seo-protocols/status');
       const data: SEOProtocolsResponse = await response.json();
 
       // Convert protocols object to array if needed

@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { apiCall } from '../config/api';
 
 interface UserAgent {
+  id: string;
   name: string;
   userAgent: string;
   type: 'googlebot' | 'bingbot' | 'facebook' | 'twitter' | 'custom';
@@ -55,6 +56,7 @@ export default function SimulationConsole() {
         if (uaData.success && uaData.data) {
           // Transform UserAgentTemplates to our UserAgent interface
           const agents = uaData.data.map((ua: any) => ({
+            id: ua.id,
             name: ua.name,
             userAgent: ua.userAgent,
             type: ua.category === 'searchbot' ? 'googlebot' :
@@ -99,7 +101,7 @@ export default function SimulationConsole() {
       // Use the correct API endpoint
       const body = {
         url: testUrl,
-        userAgentId: selectedUA || customUA || 'googlebot',
+        userAgentId: selectedUA || customUA || 'googlebot-desktop',
         options: batchMode ? { types: selectedType === 'all' ? ['googlebot', 'bingbot', 'facebook', 'twitter'] : [selectedType] } : {}
       };
 
@@ -239,7 +241,7 @@ export default function SimulationConsole() {
                   >
                     <option value="">Select agent...</option>
                     {filteredUserAgents.map((ua) => (
-                      <option key={ua.name} value={ua.userAgent}>
+                      <option key={ua.id} value={ua.id}>
                         {ua.name}
                       </option>
                     ))}

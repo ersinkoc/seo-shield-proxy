@@ -404,7 +404,6 @@ class BlockingManager {
    */
   private estimateLatencySavings(): number {
     // Simple estimation: each blocked request saves ~200ms on average
-    const stats = this.getStats();
     return 200; // ms
   }
 
@@ -413,8 +412,12 @@ class BlockingManager {
    */
   private estimateBandwidthSavings(): number {
     // Simple estimation: each blocked request saves ~50KB on average
-    const stats = this.getStats();
-    return stats.totalBlocked * 50 * 1024; // bytes
+    // Calculate totalBlocked directly to avoid recursive call to getStats
+    let totalBlocked = 0;
+    for (const rule of this.rules.values()) {
+      totalBlocked += rule.stats.blockedCount;
+    }
+    return totalBlocked * 50 * 1024; // bytes
   }
 
   /**

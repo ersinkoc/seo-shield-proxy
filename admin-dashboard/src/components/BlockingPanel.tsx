@@ -58,8 +58,9 @@ export default function BlockingPanel() {
           rulesResponse.json(),
           statsResponse.json()
         ]);
-        setRules(rulesData.rules || []);
-        setStats(statsData);
+        // Backend returns { success: true, data: [...] }
+        setRules(rulesData.data || []);
+        setStats(statsData.data || null);
       }
     } catch (error) {
       console.error('Failed to fetch blocking data:', error);

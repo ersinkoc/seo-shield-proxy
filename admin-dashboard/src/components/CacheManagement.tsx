@@ -60,11 +60,12 @@ export default function CacheManagement({ stats }: CacheManagementProps) {
       const res = await apiCall('/api/cache/clear', { method: 'POST' });
       const data = await res.json();
 
-      if (data.status === 'ok') {
+      if (data.success) {
+        const prevCount = cacheList.length;
         setCacheList([]);
-        addNotification(`Cache cleared successfully! Removed ${data.cleared.keys} keys.`, 'success');
+        addNotification(`Cache cleared successfully! Removed ${prevCount} keys.`, 'success');
       } else {
-        addNotification('Failed to clear cache: ' + data.error, 'error');
+        addNotification('Failed to clear cache: ' + (data.error || 'Unknown error'), 'error');
       }
     } catch (error) {
       console.error('Failed to clear cache:', error);

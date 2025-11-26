@@ -56,16 +56,12 @@ const SnapshotDiff = () => {
 
   const fetchSnapshots = async (pageNum: number) => {
     try {
-      const response = await apiCall(`/snapshots?page=${pageNum}&limit=20`, {
-        headers: {
-          'Authorization': `Basic ${btoa(localStorage.getItem('adminCredentials') || '')}`,
-        },
-      });
+      const response = await apiCall(`/snapshots?page=${pageNum}&limit=20`);
       const result = await response.json();
       if (result.success) {
         const data = result.data as SnapshotListResponse;
-        setSnapshots(data.snapshots);
-        setTotalPages(data.totalPages);
+        setSnapshots(data.snapshots || []);
+        setTotalPages(data.totalPages || 1);
       }
     } catch (error) {
       console.error('Failed to fetch snapshots:', error);
@@ -78,12 +74,8 @@ const SnapshotDiff = () => {
 
     setLoading(true);
     try {
-      const response = await apiCall('/api/snapshots/capture', {
+      const response = await apiCall('/snapshots/capture', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Basic ${btoa(localStorage.getItem('adminCredentials') || '')}`,
-        },
         body: JSON.stringify({
           url: captureUrl,
           options: {
@@ -122,12 +114,8 @@ const SnapshotDiff = () => {
 
     setLoading(true);
     try {
-      const response = await apiCall('/api/snapshots/compare', {
+      const response = await apiCall('/snapshots/compare', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Basic ${btoa(localStorage.getItem('adminCredentials') || '')}`,
-        },
         body: JSON.stringify({
           beforeId: selectedBefore,
           afterId: selectedAfter,
@@ -154,9 +142,6 @@ const SnapshotDiff = () => {
     try {
       const response = await apiCall(`/snapshots/${id}`, {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Basic ${btoa(localStorage.getItem('adminCredentials') || '')}`,
-        },
       });
 
       if (response.ok) {

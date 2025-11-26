@@ -98,24 +98,18 @@ const HotfixPanel = () => {
   const fetchData = async () => {
     try {
       const [rulesRes, statsRes, historyRes] = await Promise.all([
-        apiCall('/api/hotfix/rules', {
-          headers: { 'Authorization': `Basic ${btoa(localStorage.getItem('adminCredentials') || '')}` },
-        }),
-        apiCall('/api/hotfix/stats', {
-          headers: { 'Authorization': `Basic ${btoa(localStorage.getItem('adminCredentials') || '')}` },
-        }),
-        apiCall('/api/hotfix/tests?limit=10', {
-          headers: { 'Authorization': `Basic ${btoa(localStorage.getItem('adminCredentials') || '')}` },
-        }),
+        apiCall('/hotfix/rules'),
+        apiCall('/hotfix/stats'),
+        apiCall('/hotfix/tests?limit=10'),
       ]);
 
       const rulesData = await rulesRes.json();
       const statsData = await statsRes.json();
       const historyData = await historyRes.json();
 
-      if (rulesData.success) setRules(rulesData.data);
+      if (rulesData.success) setRules(rulesData.data || []);
       if (statsData.success) setStats(statsData.data);
-      if (historyData.success) setTestHistory(historyData.data);
+      if (historyData.success) setTestHistory(historyData.data || []);
     } catch (error) {
       console.error('Failed to fetch data:', error);
     }
@@ -129,12 +123,8 @@ const HotfixPanel = () => {
 
     setLoading(true);
     try {
-      const response = await apiCall('/api/hotfix/rules', {
+      const response = await apiCall('/hotfix/rules', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Basic ${btoa(localStorage.getItem('adminCredentials') || '')}`,
-        },
         body: JSON.stringify(formData),
       });
 
@@ -164,10 +154,6 @@ const HotfixPanel = () => {
     try {
       const response = await apiCall(`/hotfix/rules/${editingRule.id}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Basic ${btoa(localStorage.getItem('adminCredentials') || '')}`,
-        },
         body: JSON.stringify(formData),
       });
 
@@ -199,9 +185,6 @@ const HotfixPanel = () => {
     try {
       const response = await apiCall(`/hotfix/rules/${id}`, {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Basic ${btoa(localStorage.getItem('adminCredentials') || '')}`,
-        },
       });
 
       if (response.ok) {
@@ -216,9 +199,6 @@ const HotfixPanel = () => {
     try {
       const response = await apiCall(`/hotfix/rules/${id}/toggle`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Basic ${btoa(localStorage.getItem('adminCredentials') || '')}`,
-        },
       });
 
       if (response.ok) {
@@ -234,12 +214,8 @@ const HotfixPanel = () => {
 
     setLoading(true);
     try {
-      const response = await apiCall('/api/hotfix/test', {
+      const response = await apiCall('/hotfix/test', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Basic ${btoa(localStorage.getItem('adminCredentials') || '')}`,
-        },
         body: JSON.stringify({ url: testUrl }),
       });
 

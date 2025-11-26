@@ -1738,33 +1738,6 @@ router.post('/simulate/start', authenticate, express.json(), async (req: Request
 });
 
 /**
- * API: Get simulation by ID
- */
-router.get('/simulate/:id', authenticate, (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-    const simulation = uaSimulator.getSimulation(id);
-
-    if (!simulation) {
-      return res.status(404).json({
-        success: false,
-        error: 'Simulation not found',
-      });
-    }
-
-    res.json({
-      success: true,
-      data: simulation,
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: (error as Error).message,
-    });
-  }
-});
-
-/**
  * API: Get simulation history
  */
 router.get('/simulate/history', authenticate, (req: Request, res: Response) => {
@@ -1868,6 +1841,35 @@ router.post('/simulate/compare', authenticate, express.json(), async (req: Reque
 });
 
 /**
+ * API: Get simulation by ID
+ * NOTE: This route must come AFTER specific routes (history, active, stats, compare)
+ * because :id would match those paths otherwise
+ */
+router.get('/simulate/:id', authenticate, (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const simulation = uaSimulator.getSimulation(id);
+
+    if (!simulation) {
+      return res.status(404).json({
+        success: false,
+        error: 'Simulation not found',
+      });
+    }
+
+    res.json({
+      success: true,
+      data: simulation,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: (error as Error).message,
+    });
+  }
+});
+
+/**
  * API: Cancel simulation
  */
 router.post('/simulate/:id/cancel', authenticate, async (req: Request, res: Response) => {
@@ -1924,6 +1926,129 @@ router.get('/seo-protocols/status', authenticate, async (_req: Request, res: Res
       success: true,
       protocols: status.protocols,
       globalStats: metrics,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: (error as Error).message,
+    });
+  }
+});
+
+/**
+ * API: Toggle SEO protocol
+ */
+router.post('/seo-protocols/:protocolName/toggle', authenticate, async (req: Request, res: Response) => {
+  try {
+    const { protocolName } = req.params;
+    const service = getSEOProtocolsService();
+    const currentConfig = service.getConfig();
+
+    // Map protocol names to config keys
+    const protocolMap: Record<string, string> = {
+      'contentHealthCheck': 'contentHealthCheck',
+      'virtualScroll': 'virtualScroll',
+      'etagStrategy': 'etagStrategy',
+      'clusterMode': 'clusterMode',
+      'shadowDom': 'shadowDom',
+      'circuitBreaker': 'circuitBreaker'
+    };
+
+    const configKey = protocolMap[protocolName];
+    if (!configKey) {
+      return res.status(404).json({
+        success: false,
+        error: `Protocol '${protocolName}' not found`,
+      });
+    }
+
+    // Toggle the enabled state
+    const protocolConfig = (currentConfig as any)[configKey];
+    if (protocolConfig) {
+      protocolConfig.enabled = !protocolConfig.enabled;
+      service.updateConfig({ [configKey]: protocolConfig } as any);
+    }
+
+    res.json({
+      success: true,
+      message: `Protocol '${protocolName}' toggled`,
+      enabled: protocolConfig?.enabled,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: (error as Error).message,
+    });
+  }
+});
+
+/**
+ * API: Run SEO protocol
+ */
+router.post('/seo-protocols/:protocolName/run', authenticate, async (req: Request, res: Response) => {
+  try {
+    const { protocolName } = req.params;
+    const service = getSEOProtocolsService();
+
+    // Get the appropriate manager based on protocol name
+    let result: any = null;
+
+    switch (protocolName) {
+      case 'contentHealthCheck':
+        const healthCheck = service.getContentHealthCheck();
+        if (healthCheck) {
+          result = { status: 'active', message: 'Content Health Check is running' };
+        }
+        break;
+      case 'virtualScroll':
+        const virtualScroll = service.getVirtualScrollManager();
+        if (virtualScroll) {
+          result = { status: 'active', message: 'Virtual Scroll Manager is running' };
+        }
+        break;
+      case 'etagStrategy':
+        const etag = service.getETagService();
+        if (etag) {
+          result = { status: 'active', stats: etag.getCacheStats() };
+        }
+        break;
+      case 'clusterMode':
+        const cluster = service.getClusterManager();
+        if (cluster) {
+          result = { status: 'active', stats: await cluster.getStats() };
+        }
+        break;
+      case 'shadowDom':
+        const shadowDom = service.getShadowDOMExtractor();
+        if (shadowDom) {
+          result = { status: 'active', message: 'Shadow DOM Extractor is running' };
+        }
+        break;
+      case 'circuitBreaker':
+        const circuitBreaker = service.getCircuitBreakerManager();
+        if (circuitBreaker) {
+          result = { status: 'active', health: circuitBreaker.getOverallHealth() };
+        }
+        break;
+      default:
+        return res.status(404).json({
+          success: false,
+          error: `Protocol '${protocolName}' not found`,
+        });
+    }
+
+    if (!result) {
+      return res.json({
+        success: true,
+        message: `Protocol '${protocolName}' is not enabled or not initialized`,
+        result: null,
+      });
+    }
+
+    res.json({
+      success: true,
+      message: `Protocol '${protocolName}' executed`,
+      result,
     });
   } catch (error) {
     res.status(500).json({

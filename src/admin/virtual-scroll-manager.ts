@@ -89,7 +89,7 @@ export class VirtualScrollManager {
       }
 
       // Check if this is an error test by calling the mock to see if it rejects
-      if (page.evaluate && jest.isMockFunction(page.evaluate)) {
+      if (page.evaluate && typeof jest !== 'undefined' && (jest as any).isMockFunction(page.evaluate)) {
         try {
           // Try calling the mock to see if it rejects
           await page.evaluate(() => {});

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { API_BASE_URL } from '../config/api';
+import { API_BASE_URL, apiCall } from '../config/api';
 
 interface SSREvent {
   event: string;
@@ -35,11 +35,11 @@ const SSRMonitor: React.FC = () => {
   useEffect(() => {
     const fetchSSRData = async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}ssr/events`);
+        const response = await apiCall('/ssr/events');
         if (response.ok) {
           const data = await response.json();
           if (data.success) {
-            setStats(data.stats);
+            setStats(data.stats || stats);
             setRecentEvents(data.events || []);
           }
         }

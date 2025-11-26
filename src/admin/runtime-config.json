@@ -1,5 +1,5 @@
 {
-  "adminPath": "/shieldadmin",
+  "adminPath": "/admin",
   "adminAuth": {
     "enabled": true,
     "username": "admin",
@@ -9,10 +9,8 @@
     "noCachePatterns": [
       "/checkout",
       "/cart",
-      "/admin",
-      "/api",
-      "/shieldadmin",
-      "/shieldapi"
+      "/admin/*",
+      "/api/*"
     ],
     "cachePatterns": [],
     "cacheByDefault": true,
@@ -32,18 +30,5 @@
   },
   "cacheTTL": 3600,
   "maxCacheSize": 1000,
-  "hotfixRules": [
-    {
-      "name": "Test Rule",
-      "urlPattern": "*",
-      "isActive": true,
-      "injectionType": "meta",
-      "content": "<meta test=\"true\">",
-      "position": "head",
-      "priority": 1,
-      "id": "hotfix_1764012554514_hnphxw33e",
-      "createdAt": "2025-11-24T19:29:14.514Z",
-      "updatedAt": "2025-11-24T19:29:14.514Z"
-    }
-  ]
+  "testKey": "testValue"
 }
