@@ -392,6 +392,18 @@ try {
   }
 }
 
+// Security warnings for production
+if (config.NODE_ENV === 'production') {
+  if (config.ADMIN_PASSWORD === 'admin123') {
+    console.warn('⚠️  SECURITY WARNING: Using default ADMIN_PASSWORD in production!');
+    console.warn('   Set ADMIN_PASSWORD environment variable to a secure password.');
+  }
+  if (config.JWT_SECRET === 'seo-shield-jwt-secret-change-in-production') {
+    console.warn('⚠️  SECURITY WARNING: Using default JWT_SECRET in production!');
+    console.warn('   Set JWT_SECRET environment variable to a secure random string.');
+  }
+}
+
 // Log configuration
 console.log('⚙️  Configuration loaded:');
 console.log(`   PORT: ${config.PORT}`);

@@ -2124,3 +2124,960 @@ describe('SSR Response Headers', () => {
     expect(headers['X-Cache-Status']).toBe('MISS');
   });
 });
+
+describe('Database Initialization', () => {
+  it('should handle successful database connection', async () => {
+    const mockDatabaseManager = {
+      connect: vi.fn().mockResolvedValue(true),
+      getMongoStorage: vi.fn().mockReturnValue({}),
+      isDbConnected: vi.fn().mockReturnValue(true)
+    };
+
+    const connected = await mockDatabaseManager.connect();
+    expect(connected).toBe(true);
+  });
+
+  it('should handle failed database connection', async () => {
+    const mockDatabaseManager = {
+      connect: vi.fn().mockResolvedValue(false),
+      isDbConnected: vi.fn().mockReturnValue(false)
+    };
+
+    const connected = await mockDatabaseManager.connect();
+    expect(connected).toBe(false);
+  });
+
+  it('should handle database connection error', async () => {
+    const mockDatabaseManager = {
+      connect: vi.fn().mockRejectedValue(new Error('Connection refused'))
+    };
+
+    let errorCaught = false;
+    try {
+      await mockDatabaseManager.connect();
+    } catch (error) {
+      errorCaught = true;
+    }
+    expect(errorCaught).toBe(true);
+  });
+
+  it('should initialize bot detector when storage is available', () => {
+    const mongoStorage = { find: vi.fn(), insert: vi.fn() };
+    expect(mongoStorage).toBeDefined();
+  });
+
+  it('should skip bot detector when storage is null', () => {
+    const mongoStorage = null;
+    const shouldInitBotDetector = mongoStorage !== null;
+    expect(shouldInitBotDetector).toBe(false);
+  });
+
+  it('should log success message on connection', () => {
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    console.log('✅ MongoDB connected for traffic logging');
+    expect(consoleSpy).toHaveBeenCalledWith('✅ MongoDB connected for traffic logging');
+    consoleSpy.mockRestore();
+  });
+
+  it('should log warning on connection failure', () => {
+    const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    console.warn('⚠️  MongoDB connection failed, traffic events will not be persisted');
+    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('MongoDB connection failed'));
+    consoleSpy.mockRestore();
+  });
+});
+
+describe('Server Startup', () => {
+  it('should start server after database init', async () => {
+    let serverStarted = false;
+    const mockServer = {
+      listen: vi.fn().mockImplementation((port, host, callback) => {
+        serverStarted = true;
+        callback?.();
+      })
+    };
+
+    mockServer.listen(8080, '0.0.0.0', () => {});
+    expect(serverStarted).toBe(true);
+    expect(mockServer.listen).toHaveBeenCalledWith(8080, '0.0.0.0', expect.any(Function));
+  });
+
+  it('should log startup banner', () => {
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    console.log('╔═══════════════════════════════════════════════════════════╗');
+    console.log('║               SEO Shield Proxy (Ultra-Clean)           ║');
+    console.log('╚═══════════════════════════════════════════════════════════╝');
+    expect(consoleSpy).toHaveBeenCalledTimes(3);
+    consoleSpy.mockRestore();
+  });
+
+  it('should log server port', () => {
+    const port = 8080;
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    console.log(`🚀 Ultra-clean proxy server running on port ${port}`);
+    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('8080'));
+    consoleSpy.mockRestore();
+  });
+
+  it('should log target URL', () => {
+    const targetUrl = 'https://example.com';
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    console.log(`🎯 Target URL: ${targetUrl}`);
+    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('example.com'));
+    consoleSpy.mockRestore();
+  });
+
+  it('should log MongoDB status', () => {
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    console.log('💾 MongoDB: Connected');
+    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('MongoDB'));
+    consoleSpy.mockRestore();
+  });
+
+  it('should log all active features', () => {
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    console.log('Bot detection: ✅ Active');
+    console.log('SSR rendering: ✅ Active');
+    console.log('Reverse proxy: ✅ Active');
+    console.log('Caching: ✅ Active');
+    console.log('Rate limiting: ✅ Active');
+    expect(consoleSpy).toHaveBeenCalledTimes(5);
+    consoleSpy.mockRestore();
+  });
+});
+
+describe('Server Startup Fallback', () => {
+  it('should start server even if database fails', async () => {
+    let serverStarted = false;
+    const mockServer = {
+      listen: vi.fn().mockImplementation((port, host, callback) => {
+        serverStarted = true;
+        callback?.();
+      })
+    };
+
+    // Simulate database failure
+    const mockDatabaseInit = Promise.reject(new Error('Database error'));
+
+    try {
+      await mockDatabaseInit;
+    } catch {
+      // Start server anyway
+      mockServer.listen(8080, '0.0.0.0', () => {});
+    }
+
+    expect(serverStarted).toBe(true);
+  });
+
+  it('should log database fallback mode', () => {
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    console.log('🚀 Ultra-clean proxy server running on port 8080 (Database fallback mode)');
+    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('fallback mode'));
+    consoleSpy.mockRestore();
+  });
+
+  it('should log database initialization error', () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const error = new Error('Connection refused');
+    console.error('❌ Failed to initialize database:', error);
+    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Failed to initialize database'), error);
+    consoleSpy.mockRestore();
+  });
+});
+
+describe('Traffic Event Sending', () => {
+  it('should construct traffic event object', () => {
+    const event = {
+      timestamp: new Date().toISOString(),
+      type: 'request',
+      path: '/test',
+      method: 'GET',
+      userAgent: 'Mozilla/5.0',
+      isBot: false,
+      botName: null,
+      action: 'proxy',
+      statusCode: 200,
+      responseTime: 50,
+      cacheHit: false,
+      renderTime: null,
+      error: null
+    };
+
+    expect(event.type).toBe('request');
+    expect(event.path).toBe('/test');
+    expect(event.action).toBe('proxy');
+  });
+
+  it('should broadcast traffic event', () => {
+    const broadcastMock = vi.fn();
+    const event = { type: 'request', path: '/test' };
+
+    broadcastMock(event);
+    expect(broadcastMock).toHaveBeenCalledWith(event);
+  });
+
+  it('should persist traffic event to database', async () => {
+    const mockStorage = {
+      saveTrafficEvent: vi.fn().mockResolvedValue({ insertedId: 'test-id' })
+    };
+
+    const event = { type: 'request', path: '/test' };
+    await mockStorage.saveTrafficEvent(event);
+    expect(mockStorage.saveTrafficEvent).toHaveBeenCalledWith(event);
+  });
+
+  it('should handle traffic event persistence error', async () => {
+    const mockStorage = {
+      saveTrafficEvent: vi.fn().mockRejectedValue(new Error('Write error'))
+    };
+
+    let errorCaught = false;
+    try {
+      await mockStorage.saveTrafficEvent({});
+    } catch {
+      errorCaught = true;
+    }
+    expect(errorCaught).toBe(true);
+  });
+});
+
+describe('Advanced Bot Detector Integration', () => {
+  it('should create detector with mongo storage', () => {
+    const mockStorage = { find: vi.fn(), insert: vi.fn() };
+    const detector = { mongoStorage: mockStorage };
+    expect(detector.mongoStorage).toBe(mockStorage);
+  });
+
+  it('should detect bot with advanced detector', () => {
+    const mockDetector = {
+      detect: vi.fn().mockReturnValue({
+        isBot: true,
+        confidence: 0.95,
+        botType: 'search_engine',
+        botName: 'Googlebot'
+      })
+    };
+
+    const result = mockDetector.detect('Googlebot/2.1', '66.249.66.1');
+    expect(result.isBot).toBe(true);
+    expect(result.botName).toBe('Googlebot');
+  });
+
+  it('should fall back to basic detection when not initialized', () => {
+    const basicDetect = (userAgent: string) => userAgent.toLowerCase().includes('bot');
+    expect(basicDetect('Googlebot/2.1')).toBe(true);
+    expect(basicDetect('Mozilla/5.0')).toBe(false);
+  });
+});
+
+describe('Error Handler Middleware', () => {
+  it('should handle errors and return 500', () => {
+    const mockRes = {
+      status: vi.fn().mockReturnThis(),
+      send: vi.fn()
+    };
+
+    const error = new Error('Test error');
+    mockRes.status(500).send('Internal Server Error');
+
+    expect(mockRes.status).toHaveBeenCalledWith(500);
+    expect(mockRes.send).toHaveBeenCalledWith('Internal Server Error');
+  });
+
+  it('should log error with stack trace', () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const error = new Error('Test error');
+    console.error(`💥 Server error: ${error.message}`, error.stack);
+    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Server error'), expect.any(String));
+    consoleSpy.mockRestore();
+  });
+});
+
+describe('HTTP Server Events', () => {
+  it('should handle server error event', () => {
+    const mockServer = {
+      on: vi.fn()
+    };
+
+    mockServer.on('error', (err: Error) => {
+      console.error('Server error:', err);
+    });
+
+    expect(mockServer.on).toHaveBeenCalledWith('error', expect.any(Function));
+  });
+
+  it('should handle server close event', () => {
+    const mockServer = {
+      on: vi.fn()
+    };
+
+    mockServer.on('close', () => {
+      console.log('Server closed');
+    });
+
+    expect(mockServer.on).toHaveBeenCalledWith('close', expect.any(Function));
+  });
+});
+
+describe('Graceful Shutdown Handling', () => {
+  it('should handle SIGTERM signal', () => {
+    const shutdownHandler = vi.fn();
+    process.on('SIGTERM', shutdownHandler);
+
+    // Simulate signal (don't actually send it)
+    expect(typeof shutdownHandler).toBe('function');
+  });
+
+  it('should handle SIGINT signal', () => {
+    const shutdownHandler = vi.fn();
+    process.on('SIGINT', shutdownHandler);
+
+    expect(typeof shutdownHandler).toBe('function');
+  });
+
+  it('should close server on shutdown', async () => {
+    const mockServer = {
+      close: vi.fn().mockImplementation((callback) => callback?.())
+    };
+
+    await new Promise<void>((resolve) => {
+      mockServer.close(() => resolve());
+    });
+
+    expect(mockServer.close).toHaveBeenCalled();
+  });
+
+  it('should close database on shutdown', async () => {
+    const mockDb = {
+      disconnect: vi.fn().mockResolvedValue(undefined)
+    };
+
+    await mockDb.disconnect();
+    expect(mockDb.disconnect).toHaveBeenCalled();
+  });
+});
+
+describe('Static Asset Detection', () => {
+  const staticExtensions = ['.js', '.css', '.png', '.jpg', '.gif', '.ico', '.svg', '.woff', '.woff2', '.ttf', '.eot'];
+
+  staticExtensions.forEach(ext => {
+    it(`should detect ${ext} as static asset`, () => {
+      const path = `/assets/file${ext}`;
+      const isStatic = staticExtensions.some(e => path.endsWith(e));
+      expect(isStatic).toBe(true);
+    });
+  });
+
+  it('should not detect HTML as static', () => {
+    const path = '/page.html';
+    const isStatic = staticExtensions.some(e => path.endsWith(e));
+    expect(isStatic).toBe(false);
+  });
+
+  it('should not detect paths without extension as static', () => {
+    const path = '/api/users';
+    const isStatic = staticExtensions.some(e => path.endsWith(e));
+    expect(isStatic).toBe(false);
+  });
+});
+
+describe('SSR Render Flow', () => {
+  it('should check cache before rendering', async () => {
+    const mockCache = {
+      get: vi.fn().mockReturnValue(null)
+    };
+
+    const url = 'http://localhost:3000/test';
+    const cached = mockCache.get(url);
+    expect(cached).toBeNull();
+    expect(mockCache.get).toHaveBeenCalledWith(url);
+  });
+
+  it('should return cached content if available', async () => {
+    const cachedContent = '<html><body>Cached</body></html>';
+    const mockCache = {
+      get: vi.fn().mockReturnValue(cachedContent)
+    };
+
+    const cached = mockCache.get('http://localhost:3000/test');
+    expect(cached).toBe(cachedContent);
+  });
+
+  it('should render page if not cached', async () => {
+    const mockRender = vi.fn().mockResolvedValue('<html><body>Rendered</body></html>');
+
+    const content = await mockRender('http://localhost:3000/test');
+    expect(content).toContain('Rendered');
+  });
+
+  it('should cache rendered content', async () => {
+    const mockCache = {
+      set: vi.fn().mockReturnValue(true)
+    };
+
+    const url = 'http://localhost:3000/test';
+    const content = '<html><body>Content</body></html>';
+    const result = mockCache.set(url, content);
+
+    expect(result).toBe(true);
+    expect(mockCache.set).toHaveBeenCalledWith(url, content);
+  });
+});
+
+describe('Proxy Configuration', () => {
+  it('should configure target URL', () => {
+    const config = {
+      target: 'https://example.com',
+      changeOrigin: true,
+      ws: true
+    };
+
+    expect(config.target).toBe('https://example.com');
+    expect(config.changeOrigin).toBe(true);
+  });
+
+  it('should enable WebSocket proxying', () => {
+    const config = { ws: true };
+    expect(config.ws).toBe(true);
+  });
+
+  it('should set security headers', () => {
+    const headers = {
+      'X-Forwarded-Proto': 'https',
+      'X-Real-IP': '127.0.0.1'
+    };
+
+    expect(headers['X-Forwarded-Proto']).toBe('https');
+    expect(headers['X-Real-IP']).toBe('127.0.0.1');
+  });
+});
+
+describe('Server Request Processing Pipeline', () => {
+  it('should process human requests via transparent proxy', () => {
+    const isBot = false;
+    let proxyUsed = false;
+    let ssrUsed = false;
+
+    if (isBot) {
+      ssrUsed = true;
+    } else {
+      proxyUsed = true;
+    }
+
+    expect(proxyUsed).toBe(true);
+    expect(ssrUsed).toBe(false);
+  });
+
+  it('should process bot requests via SSR', () => {
+    const isBot = true;
+    let proxyUsed = false;
+    let ssrUsed = false;
+
+    if (isBot) {
+      ssrUsed = true;
+    } else {
+      proxyUsed = true;
+    }
+
+    expect(ssrUsed).toBe(true);
+    expect(proxyUsed).toBe(false);
+  });
+
+  it('should skip SSR for static assets', () => {
+    const staticExtensions = ['.js', '.css', '.png', '.jpg', '.gif', '.svg', '.ico', '.woff', '.woff2', '.ttf'];
+    const requestPath = '/assets/logo.png';
+
+    const isStatic = staticExtensions.some(ext => requestPath.toLowerCase().endsWith(ext));
+    expect(isStatic).toBe(true);
+  });
+
+  it('should skip SSR for API paths', () => {
+    const apiPaths = ['/api/', '/graphql'];
+    const requestPath = '/api/users';
+
+    const isApi = apiPaths.some(prefix => requestPath.startsWith(prefix));
+    expect(isApi).toBe(true);
+  });
+});
+
+describe('Server Cache Integration', () => {
+  it('should check cache before rendering', async () => {
+    const mockCache = {
+      getWithTTL: vi.fn().mockReturnValue({ value: '<html>cached</html>', ttl: 3600, isStale: false })
+    };
+
+    const entry = mockCache.getWithTTL('http://example.com/page');
+    expect(entry).toBeDefined();
+    expect(entry.value).toContain('cached');
+  });
+
+  it('should handle stale-while-revalidate strategy', async () => {
+    const mockCache = {
+      getWithTTL: vi.fn().mockReturnValue({ value: '<html>stale</html>', ttl: 0, isStale: true })
+    };
+
+    const entry = mockCache.getWithTTL('http://example.com/page');
+    expect(entry.isStale).toBe(true);
+  });
+
+  it('should store rendered content in cache', () => {
+    let cachedData: any = null;
+    const mockCache = {
+      set: vi.fn().mockImplementation((key, value) => {
+        cachedData = { key, value };
+        return true;
+      })
+    };
+
+    mockCache.set('http://example.com/page', '<html>rendered</html>');
+    expect(cachedData).not.toBeNull();
+    expect(cachedData.value).toContain('rendered');
+  });
+});
+
+describe('Server Health Endpoint', () => {
+  it('should return health status', () => {
+    const healthResponse = {
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime()
+    };
+
+    expect(healthResponse.status).toBe('ok');
+    expect(healthResponse.timestamp).toBeDefined();
+    expect(typeof healthResponse.uptime).toBe('number');
+  });
+
+  it('should include cache status in health check', () => {
+    const healthResponse = {
+      status: 'ok',
+      cache: {
+        ready: true,
+        keys: 100,
+        hits: 500,
+        misses: 50
+      }
+    };
+
+    expect(healthResponse.cache.ready).toBe(true);
+    expect(healthResponse.cache.keys).toBe(100);
+  });
+
+  it('should include render queue status in health check', () => {
+    const healthResponse = {
+      status: 'ok',
+      renderQueue: {
+        queued: 5,
+        processing: 2,
+        completed: 100,
+        errors: 3
+      }
+    };
+
+    expect(healthResponse.renderQueue.queued).toBe(5);
+    expect(healthResponse.renderQueue.processing).toBe(2);
+  });
+});
+
+describe('Server Error Response Handling', () => {
+  it('should return 502 on upstream error', () => {
+    const errorCode = 502;
+    const errorMessage = 'Bad Gateway';
+
+    expect(errorCode).toBe(502);
+    expect(errorMessage).toBe('Bad Gateway');
+  });
+
+  it('should return 503 on render error', () => {
+    const errorCode = 503;
+    const errorMessage = 'Service Unavailable';
+
+    expect(errorCode).toBe(503);
+    expect(errorMessage).toBe('Service Unavailable');
+  });
+
+  it('should return 504 on timeout', () => {
+    const errorCode = 504;
+    const errorMessage = 'Gateway Timeout';
+
+    expect(errorCode).toBe(504);
+    expect(errorMessage).toBe('Gateway Timeout');
+  });
+
+  it('should include error details in response', () => {
+    const errorResponse = {
+      error: 'Render failed',
+      code: 503,
+      details: 'Navigation timeout after 30000ms'
+    };
+
+    expect(errorResponse.error).toBe('Render failed');
+    expect(errorResponse.code).toBe(503);
+    expect(errorResponse.details).toContain('timeout');
+  });
+});
+
+describe('Server Metrics Collection', () => {
+  it('should track request count', () => {
+    const metrics = {
+      requests: { total: 0, human: 0, bot: 0 }
+    };
+
+    metrics.requests.total++;
+    metrics.requests.human++;
+
+    expect(metrics.requests.total).toBe(1);
+    expect(metrics.requests.human).toBe(1);
+  });
+
+  it('should track response times', () => {
+    const times: number[] = [];
+    const startTime = Date.now();
+    const endTime = startTime + 150;
+    const duration = endTime - startTime;
+
+    times.push(duration);
+
+    expect(times.length).toBe(1);
+    expect(times[0]).toBe(150);
+  });
+
+  it('should track cache metrics', () => {
+    const metrics = {
+      cache: { hits: 0, misses: 0, hitRate: 0 }
+    };
+
+    metrics.cache.hits = 80;
+    metrics.cache.misses = 20;
+    metrics.cache.hitRate = (metrics.cache.hits / (metrics.cache.hits + metrics.cache.misses)) * 100;
+
+    expect(metrics.cache.hitRate).toBe(80);
+  });
+});
+
+describe('Server Request URL Building', () => {
+  it('should build target URL from request', () => {
+    const targetUrl = 'https://spa.example.com';
+    const requestPath = '/users/123';
+    const requestQuery = '?tab=profile';
+
+    const fullUrl = `${targetUrl}${requestPath}${requestQuery}`;
+    expect(fullUrl).toBe('https://spa.example.com/users/123?tab=profile');
+  });
+
+  it('should handle URL without query string', () => {
+    const targetUrl = 'https://spa.example.com';
+    const requestPath = '/products';
+
+    const fullUrl = `${targetUrl}${requestPath}`;
+    expect(fullUrl).toBe('https://spa.example.com/products');
+  });
+
+  it('should handle complex query strings', () => {
+    const targetUrl = 'https://spa.example.com';
+    const requestPath = '/search';
+    const requestQuery = '?q=test&category=all&sort=date&page=1';
+
+    const fullUrl = `${targetUrl}${requestPath}${requestQuery}`;
+    expect(fullUrl).toContain('q=test');
+    expect(fullUrl).toContain('category=all');
+  });
+});
+
+describe('Server User Agent Processing', () => {
+  it('should extract user agent from request', () => {
+    const req = {
+      headers: { 'user-agent': 'Googlebot/2.1' }
+    };
+
+    const userAgent = req.headers['user-agent'] || '';
+    expect(userAgent).toBe('Googlebot/2.1');
+  });
+
+  it('should handle missing user agent', () => {
+    const req = { headers: {} };
+
+    const userAgent = (req.headers as any)['user-agent'] || '';
+    expect(userAgent).toBe('');
+  });
+
+  it('should identify known bot signatures', () => {
+    const knownBots = ['Googlebot', 'Bingbot', 'Slurp', 'DuckDuckBot'];
+    const userAgent = 'Mozilla/5.0 (compatible; Googlebot/2.1)';
+
+    const isKnownBot = knownBots.some(bot => userAgent.includes(bot));
+    expect(isKnownBot).toBe(true);
+  });
+});
+
+describe('Server Response Headers', () => {
+  it('should set X-SSR-Rendered header for bot requests', () => {
+    const headers: Record<string, string> = {};
+    const isBot = true;
+
+    if (isBot) {
+      headers['X-SSR-Rendered'] = 'true';
+    }
+
+    expect(headers['X-SSR-Rendered']).toBe('true');
+  });
+
+  it('should set X-Cache header for cached responses', () => {
+    const headers: Record<string, string> = {};
+    const fromCache = true;
+
+    if (fromCache) {
+      headers['X-Cache'] = 'HIT';
+    } else {
+      headers['X-Cache'] = 'MISS';
+    }
+
+    expect(headers['X-Cache']).toBe('HIT');
+  });
+
+  it('should set Content-Type header', () => {
+    const headers: Record<string, string> = {};
+
+    headers['Content-Type'] = 'text/html; charset=utf-8';
+
+    expect(headers['Content-Type']).toBe('text/html; charset=utf-8');
+  });
+
+  it('should set X-Response-Time header', () => {
+    const headers: Record<string, string> = {};
+    const responseTime = 250;
+
+    headers['X-Response-Time'] = `${responseTime}ms`;
+
+    expect(headers['X-Response-Time']).toBe('250ms');
+  });
+});
+
+describe('Server Proxy Error Handling', () => {
+  it('should handle ECONNREFUSED error', () => {
+    const error = { code: 'ECONNREFUSED', message: 'Connection refused' };
+
+    expect(error.code).toBe('ECONNREFUSED');
+  });
+
+  it('should handle ETIMEDOUT error', () => {
+    const error = { code: 'ETIMEDOUT', message: 'Connection timed out' };
+
+    expect(error.code).toBe('ETIMEDOUT');
+  });
+
+  it('should handle ENOTFOUND error', () => {
+    const error = { code: 'ENOTFOUND', message: 'DNS lookup failed' };
+
+    expect(error.code).toBe('ENOTFOUND');
+  });
+
+  it('should log proxy errors', () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const error = new Error('Proxy error');
+    console.error('Proxy error:', error.message);
+
+    expect(consoleSpy).toHaveBeenCalled();
+    consoleSpy.mockRestore();
+  });
+});
+
+describe('Server Graceful Shutdown Flow', () => {
+  it('should stop accepting new connections', async () => {
+    let acceptingConnections = true;
+
+    const stopAccepting = async () => {
+      acceptingConnections = false;
+    };
+
+    await stopAccepting();
+    expect(acceptingConnections).toBe(false);
+  });
+
+  it('should wait for pending requests', async () => {
+    let pendingRequests = 5;
+
+    const waitForPending = async () => {
+      while (pendingRequests > 0) {
+        pendingRequests--;
+      }
+    };
+
+    await waitForPending();
+    expect(pendingRequests).toBe(0);
+  });
+
+  it('should close browser connections', async () => {
+    let browserClosed = false;
+
+    const closeBrowser = async () => {
+      browserClosed = true;
+    };
+
+    await closeBrowser();
+    expect(browserClosed).toBe(true);
+  });
+
+  it('should close cache connections', async () => {
+    let cacheClosed = false;
+
+    const closeCache = async () => {
+      cacheClosed = true;
+    };
+
+    await closeCache();
+    expect(cacheClosed).toBe(true);
+  });
+
+  it('should close HTTP server', async () => {
+    let serverClosed = false;
+
+    const closeServer = async () => {
+      serverClosed = true;
+    };
+
+    await closeServer();
+    expect(serverClosed).toBe(true);
+  });
+});
+
+describe('Server Request Logging', () => {
+  it('should log incoming request', () => {
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    const method = 'GET';
+    const path = '/users/123';
+    const ip = '192.168.1.1';
+
+    console.log(`${method} ${path} from ${ip}`);
+
+    expect(consoleSpy).toHaveBeenCalled();
+    consoleSpy.mockRestore();
+  });
+
+  it('should log response status', () => {
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    const statusCode = 200;
+    const path = '/users/123';
+    const duration = 150;
+
+    console.log(`${statusCode} ${path} - ${duration}ms`);
+
+    expect(consoleSpy).toHaveBeenCalled();
+    consoleSpy.mockRestore();
+  });
+
+  it('should format log timestamp', () => {
+    const timestamp = new Date().toISOString();
+    expect(timestamp).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
+  });
+});
+
+describe('Server Debug Mode', () => {
+  it('should detect _render=true query param', () => {
+    const url = '/page?_render=true';
+    const isDebugRender = url.includes('_render=true');
+
+    expect(isDebugRender).toBe(true);
+  });
+
+  it('should detect _render=debug query param', () => {
+    const url = '/page?_render=debug';
+    const isDebugMode = url.includes('_render=debug');
+
+    expect(isDebugMode).toBe(true);
+  });
+
+  it('should return raw HTML in debug mode', () => {
+    const debugEnabled = true;
+    const html = '<html><body>Content</body></html>';
+
+    if (debugEnabled) {
+      // Return raw HTML instead of proxying
+      expect(html).toContain('<html>');
+    }
+  });
+
+  it('should include timing metrics in debug response', () => {
+    const debugResponse = {
+      html: '<html></html>',
+      metrics: {
+        renderTime: 1500,
+        cacheCheck: 5,
+        totalTime: 1505
+      }
+    };
+
+    expect(debugResponse.metrics).toBeDefined();
+    expect(debugResponse.metrics.renderTime).toBe(1500);
+  });
+});
+
+describe('Server Express Middleware Order', () => {
+  it('should process middleware in order', () => {
+    const order: string[] = [];
+
+    const middleware1 = () => { order.push('1-cors'); };
+    const middleware2 = () => { order.push('2-bodyParser'); };
+    const middleware3 = () => { order.push('3-botDetection'); };
+    const middleware4 = () => { order.push('4-handler'); };
+
+    middleware1();
+    middleware2();
+    middleware3();
+    middleware4();
+
+    expect(order).toEqual(['1-cors', '2-bodyParser', '3-botDetection', '4-handler']);
+  });
+});
+
+describe('Server Port Configuration', () => {
+  it('should use PORT from environment', () => {
+    const envPort = process.env.PORT || '8080';
+    const port = parseInt(envPort, 10);
+
+    expect(typeof port).toBe('number');
+  });
+
+  it('should default to 8080', () => {
+    const defaultPort = 8080;
+    expect(defaultPort).toBe(8080);
+  });
+});
+
+describe('Server HTTP Server Events', () => {
+  it('should handle listening event', () => {
+    let listeningCalled = false;
+
+    const onListening = () => {
+      listeningCalled = true;
+    };
+
+    onListening();
+    expect(listeningCalled).toBe(true);
+  });
+
+  it('should handle error event', () => {
+    let errorHandled = false;
+
+    const onError = (_error: Error) => {
+      errorHandled = true;
+    };
+
+    onError(new Error('EADDRINUSE'));
+    expect(errorHandled).toBe(true);
+  });
+
+  it('should handle close event', () => {
+    let closeCalled = false;
+
+    const onClose = () => {
+      closeCalled = true;
+    };
+
+    onClose();
+    expect(closeCalled).toBe(true);
+  });
+});

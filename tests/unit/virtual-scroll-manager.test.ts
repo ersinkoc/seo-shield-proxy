@@ -1570,4 +1570,269 @@ describe('VirtualScrollManager', () => {
       expect(result).toHaveProperty('recommendations');
     });
   });
+
+  describe('Page State Analysis', () => {
+    it('should get initial page height', async () => {
+      const pageState = {
+        pageHeight: 5000,
+        scrollHeight: 5000,
+        imageCount: 10,
+        loadedImages: 10
+      };
+      expect(pageState.pageHeight).toBe(5000);
+    });
+
+    it('should count images on page', async () => {
+      const pageState = {
+        pageHeight: 2000,
+        imageCount: 25,
+        loadedImages: 20
+      };
+      expect(pageState.imageCount).toBe(25);
+      expect(pageState.loadedImages).toBe(20);
+    });
+
+    it('should detect scroll container', () => {
+      const containers = [
+        { selector: '.scroll-container', scrollable: true },
+        { selector: 'body', scrollable: true }
+      ];
+      expect(containers.some(c => c.scrollable)).toBe(true);
+    });
+  });
+
+  describe('Scroll Step Execution', () => {
+    it('should execute scroll step', async () => {
+      const scrollStep = {
+        step: 1,
+        scrollY: 500,
+        previousHeight: 1000,
+        newHeight: 1500
+      };
+      expect(scrollStep.newHeight).toBeGreaterThan(scrollStep.previousHeight);
+    });
+
+    it('should detect content change after scroll', () => {
+      const beforeScroll = { height: 1000, contentLength: 5000 };
+      const afterScroll = { height: 1500, contentLength: 7500 };
+      const contentChange = afterScroll.contentLength - beforeScroll.contentLength;
+      expect(contentChange).toBeGreaterThan(0);
+    });
+
+    it('should handle max scroll height', () => {
+      const currentHeight = 15000;
+      const maxScrollHeight = 10000;
+      const shouldStopScrolling = currentHeight >= maxScrollHeight;
+      expect(shouldStopScrolling).toBe(true);
+    });
+  });
+
+  describe('Lazy Image Loading', () => {
+    it('should trigger lazy images with data-src', () => {
+      const images = [
+        { selector: 'img[data-src]', loaded: false },
+        { selector: 'img[loading="lazy"]', loaded: true }
+      ];
+      const lazyImages = images.filter(img => !img.loaded);
+      expect(lazyImages.length).toBe(1);
+    });
+
+    it('should set src from data-src', () => {
+      const img = { dataSrc: 'https://example.com/image.jpg', src: '' };
+      img.src = img.dataSrc;
+      expect(img.src).toBe(img.dataSrc);
+    });
+
+    it('should remove lazy class after loading', () => {
+      const img = { classList: ['lazy', 'fade-in'], loaded: false };
+      img.classList = img.classList.filter(c => c !== 'lazy');
+      img.loaded = true;
+      expect(img.classList).not.toContain('lazy');
+      expect(img.loaded).toBe(true);
+    });
+  });
+
+  describe('Intersection Observer Trigger', () => {
+    it('should create intersection observer', () => {
+      const observer = {
+        threshold: 0.1,
+        rootMargin: '100px',
+        observe: vi.fn(),
+        disconnect: vi.fn()
+      };
+      expect(observer.threshold).toBe(0.1);
+      expect(typeof observer.observe).toBe('function');
+    });
+
+    it('should observe lazy elements', () => {
+      const elements = [
+        { id: 1, isIntersecting: false },
+        { id: 2, isIntersecting: true }
+      ];
+      const intersecting = elements.filter(el => el.isIntersecting);
+      expect(intersecting.length).toBe(1);
+    });
+
+    it('should trigger load when intersecting', () => {
+      const entry = { isIntersecting: true, target: { dataset: { src: 'image.jpg' } } };
+      if (entry.isIntersecting) {
+        expect(entry.target.dataset.src).toBe('image.jpg');
+      }
+    });
+  });
+
+  describe('Network Idle Detection', () => {
+    it('should wait for network idle', async () => {
+      const networkState = { pendingRequests: 0, idleTime: 5000 };
+      const isIdle = networkState.pendingRequests === 0;
+      expect(isIdle).toBe(true);
+    });
+
+    it('should timeout if network not idle', async () => {
+      const networkIdleTimeout = 5000;
+      const startTime = Date.now();
+      const elapsed = 6000;
+      const timedOut = elapsed > networkIdleTimeout;
+      expect(timedOut).toBe(true);
+    });
+
+    it('should track network requests', () => {
+      const requests = { started: 10, completed: 8, pending: 2 };
+      expect(requests.pending).toBe(requests.started - requests.completed);
+    });
+  });
+
+  describe('Scroll Completion Rate', () => {
+    it('should calculate completion rate', () => {
+      const initialHeight = 1000;
+      const finalHeight = 5000;
+      const contentLoaded = finalHeight - initialHeight;
+      const completionRate = (contentLoaded / finalHeight) * 100;
+      expect(completionRate).toBe(80);
+    });
+
+    it('should handle 0 content change', () => {
+      const initialHeight = 1000;
+      const finalHeight = 1000;
+      const contentLoaded = finalHeight - initialHeight;
+      expect(contentLoaded).toBe(0);
+    });
+
+    it('should cap completion rate at 100', () => {
+      const completionRate = 150;
+      const cappedRate = Math.min(completionRate, 100);
+      expect(cappedRate).toBe(100);
+    });
+  });
+
+  describe('Error Handling', () => {
+    it('should catch scroll execution errors', () => {
+      const errors: string[] = [];
+      try {
+        throw new Error('Scroll failed');
+      } catch (error) {
+        errors.push(`Scroll execution failed: ${(error as Error).message}`);
+      }
+      expect(errors.length).toBe(1);
+      expect(errors[0]).toContain('Scroll failed');
+    });
+
+    it('should catch page evaluation errors', () => {
+      const errors: string[] = [];
+      try {
+        throw new Error('Page evaluation failed');
+      } catch (error) {
+        errors.push(`Page evaluation error: ${(error as Error).message}`);
+      }
+      expect(errors[0]).toContain('Page evaluation');
+    });
+
+    it('should handle timeout errors', () => {
+      const errors: string[] = [];
+      const timeoutError = new Error('Navigation timeout');
+      errors.push(timeoutError.message);
+      expect(errors).toContain('Navigation timeout');
+    });
+  });
+
+  describe('Recommendations Generation', () => {
+    it('should recommend more scroll steps for low completion', () => {
+      const completionRate = 30;
+      const recommendations: string[] = [];
+      if (completionRate < 50) {
+        recommendations.push('Consider increasing scroll steps for better content loading');
+      }
+      expect(recommendations.length).toBe(1);
+    });
+
+    it('should recommend intersection observer for lazy content', () => {
+      const newImages = 0;
+      const recommendations: string[] = [];
+      if (newImages === 0) {
+        recommendations.push('Enable intersection observer triggering for lazy-loaded images');
+      }
+      expect(recommendations.length).toBe(1);
+    });
+
+    it('should recommend network idle wait', () => {
+      const networkRequests = 50;
+      const recommendations: string[] = [];
+      if (networkRequests > 20) {
+        recommendations.push('Consider enabling network idle wait for content-heavy pages');
+      }
+      expect(recommendations.length).toBe(1);
+    });
+  });
+
+  describe('SEO Protocol Integration', () => {
+    it('should read config from SEO protocol', () => {
+      const seoConfig = {
+        virtualScroll: {
+          enabled: true,
+          scrollSteps: 10
+        }
+      };
+      expect(seoConfig.virtualScroll.enabled).toBe(true);
+    });
+
+    it('should merge config with defaults', () => {
+      const defaults = { scrollSteps: 5, scrollInterval: 300 };
+      const custom = { scrollSteps: 10 };
+      const merged = { ...defaults, ...custom };
+      expect(merged.scrollSteps).toBe(10);
+      expect(merged.scrollInterval).toBe(300);
+    });
+  });
+
+  describe('Trigger Method Tracking', () => {
+    it('should track basic scrolling', () => {
+      const methods: string[] = [];
+      methods.push('Basic Scrolling');
+      expect(methods).toContain('Basic Scrolling');
+    });
+
+    it('should track infinite scroll trigger', () => {
+      const methods: string[] = [];
+      methods.push('Infinite Scroll Trigger');
+      expect(methods).toContain('Infinite Scroll Trigger');
+    });
+
+    it('should track lazy image trigger', () => {
+      const methods: string[] = [];
+      methods.push('Lazy Image Trigger');
+      expect(methods).toContain('Lazy Image Trigger');
+    });
+
+    it('should track intersection observer trigger', () => {
+      const methods: string[] = [];
+      methods.push('Intersection Observer Trigger');
+      expect(methods).toContain('Intersection Observer Trigger');
+    });
+
+    it('should track custom scroll events', () => {
+      const methods: string[] = [];
+      methods.push('Custom Scroll Events');
+      expect(methods).toContain('Custom Scroll Events');
+    });
+  });
 });

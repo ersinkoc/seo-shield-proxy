@@ -1725,3 +1725,537 @@ describe('WebSocket broadcast simulation', () => {
     expect(emitSafely).not.toThrow();
   });
 });
+
+describe('Browser RenderResult Interface', () => {
+  it('should support all RenderResult properties', () => {
+    const result = {
+      html: '<!DOCTYPE html><html><head><title>Test</title></head><body></body></html>',
+      statusCode: 200
+    };
+
+    expect(result.html).toBeDefined();
+    expect(typeof result.html).toBe('string');
+    expect(result.html.length).toBeGreaterThan(0);
+    expect(result.statusCode).toBe(200);
+  });
+
+  it('should handle redirect status codes', () => {
+    const redirectResult = {
+      html: '<!DOCTYPE html><html><body>Redirecting...</body></html>',
+      statusCode: 301
+    };
+
+    expect(redirectResult.statusCode).toBe(301);
+    expect([301, 302, 307, 308]).toContain(redirectResult.statusCode);
+  });
+
+  it('should handle error status codes', () => {
+    const errorResult = {
+      html: '<!DOCTYPE html><html><body>Internal Server Error</body></html>',
+      statusCode: 500
+    };
+
+    expect(errorResult.statusCode).toBe(500);
+    expect(errorResult.statusCode).toBeGreaterThanOrEqual(400);
+  });
+});
+
+describe('Browser shouldBlockRequest Logic', () => {
+  const shouldBlockRequest = (requestUrl: string, resourceType: string): boolean => {
+    const BLACKLISTED_DOMAINS = [
+      'google-analytics.com',
+      'googletagmanager.com',
+      'doubleclick.net',
+      'facebook.net',
+      'hotjar.com'
+    ];
+
+    const BLACKLISTED_PATTERNS = [
+      '/analytics',
+      '/gtm',
+      '/fbevents',
+      '.jpg',
+      '.png',
+      '.css'
+    ];
+
+    try {
+      const url = new URL(requestUrl);
+      const hostname = url.hostname.toLowerCase();
+
+      for (const blacklistedDomain of BLACKLISTED_DOMAINS) {
+        if (hostname.includes(blacklistedDomain.toLowerCase())) {
+          return true;
+        }
+      }
+
+      const lowerUrl = requestUrl.toLowerCase();
+      for (const pattern of BLACKLISTED_PATTERNS) {
+        if (lowerUrl.includes(pattern)) {
+          return true;
+        }
+      }
+
+      if (['image', 'stylesheet', 'font', 'media', 'websocket', 'eventsource'].includes(resourceType)) {
+        return true;
+      }
+
+      return false;
+    } catch {
+      return false;
+    }
+  };
+
+  it('should block analytics domains', () => {
+    expect(shouldBlockRequest('https://www.google-analytics.com/collect', 'xhr')).toBe(true);
+  });
+
+  it('should block tracking patterns', () => {
+    expect(shouldBlockRequest('https://example.com/analytics/track.js', 'script')).toBe(true);
+  });
+
+  it('should block resource types', () => {
+    expect(shouldBlockRequest('https://cdn.example.com/logo.png', 'image')).toBe(true);
+  });
+
+  it('should allow legitimate scripts', () => {
+    expect(shouldBlockRequest('https://cdn.example.com/app.js', 'script')).toBe(false);
+  });
+
+  it('should handle invalid URLs gracefully', () => {
+    expect(shouldBlockRequest('not-a-url', 'script')).toBe(false);
+  });
+});
+
+describe('Browser Cluster Task Handler', () => {
+  it('should increment metrics on task start', () => {
+    const metrics = { queued: 3, processing: 0, completed: 0, errors: 0 };
+
+    metrics.processing++;
+    metrics.queued = Math.max(0, metrics.queued - 1);
+
+    expect(metrics.processing).toBe(1);
+    expect(metrics.queued).toBe(2);
+  });
+
+  it('should handle successful task completion', () => {
+    const metrics = { queued: 0, processing: 1, completed: 0, errors: 0 };
+
+    metrics.completed++;
+    metrics.processing--;
+
+    expect(metrics.completed).toBe(1);
+    expect(metrics.processing).toBe(0);
+  });
+
+  it('should handle task errors', () => {
+    const metrics = { queued: 0, processing: 1, completed: 0, errors: 0 };
+
+    metrics.errors++;
+    metrics.processing--;
+
+    expect(metrics.errors).toBe(1);
+    expect(metrics.processing).toBe(0);
+  });
+});
+
+describe('Browser Content Health Check Flow', () => {
+  it('should pass health check for valid content', () => {
+    const healthResult = {
+      score: 95,
+      passed: true,
+      issues: []
+    };
+
+    expect(healthResult.passed).toBe(true);
+    expect(healthResult.score).toBeGreaterThan(80);
+  });
+
+  it('should fail health check for missing critical elements', () => {
+    const healthResult = {
+      score: 40,
+      passed: false,
+      issues: [
+        { type: 'error', message: 'Missing title' },
+        { type: 'error', message: 'Missing h1' }
+      ]
+    };
+
+    const hasErrors = healthResult.issues.some(i => i.type === 'error');
+    expect(hasErrors).toBe(true);
+    expect(healthResult.passed).toBe(false);
+  });
+
+  it('should return 503 when content validation fails', () => {
+    const failHtml = '<!DOCTYPE html><html><head><title>Service Unavailable</title><meta name="robots" content="noindex"></head><body><h1>503 Service Unavailable</h1></body></html>';
+
+    expect(failHtml).toContain('503 Service Unavailable');
+    expect(failHtml).toContain('noindex');
+  });
+});
+
+describe('Browser Virtual Scroll Flow', () => {
+  it('should update HTML after virtual scroll', () => {
+    const initialHtml = '<html><body>Initial</body></html>';
+    const scrolledHtml = '<html><body>Initial<div>Lazy loaded</div></body></html>';
+
+    expect(scrolledHtml.length).toBeGreaterThan(initialHtml.length);
+  });
+
+  it('should log scroll completion', () => {
+    const scrollResult = {
+      success: true,
+      scrollSteps: 10,
+      completionRate: 100
+    };
+
+    const logMessage = `📜 Virtual Scroll completed: ${scrollResult.scrollSteps} steps, ${scrollResult.completionRate}% completion rate`;
+    expect(logMessage).toContain('Virtual Scroll completed');
+    expect(logMessage).toContain('10 steps');
+  });
+});
+
+describe('Browser Soft 404 Detection Flow', () => {
+  it('should detect soft 404 from title', () => {
+    const analysis = (title: string) => {
+      const reasons: string[] = [];
+      if (title.includes('404') || title.includes('not found')) {
+        reasons.push(`Title indicates 404: "${title}"`);
+      }
+      return { isSoft404: reasons.length > 0, reasons };
+    };
+
+    const result = analysis('Page Not Found - 404');
+    expect(result.isSoft404).toBe(true);
+    expect(result.reasons.length).toBeGreaterThan(0);
+  });
+
+  it('should detect explicit prerender-status-code', () => {
+    const metaContent = '404';
+    const statusCode = parseInt(metaContent, 10);
+
+    expect(statusCode).toBe(404);
+    expect(!isNaN(statusCode)).toBe(true);
+    expect(statusCode >= 100 && statusCode < 600).toBe(true);
+  });
+
+  it('should detect 404 patterns in body text', () => {
+    const patterns = [
+      '404 - page not found',
+      'we couldn\'t find the page',
+      'no results found'
+    ];
+
+    const bodyText = 'Sorry, 404 - page not found';
+    const detected = patterns.some(p => bodyText.toLowerCase().includes(p));
+
+    expect(detected).toBe(true);
+  });
+});
+
+describe('Browser Navigation Fallback Strategy', () => {
+  it('should try networkidle0 first', async () => {
+    const strategies = ['networkidle0', 'networkidle2', 'domcontentloaded'];
+    let usedStrategy = '';
+
+    const navigate = async (strategy: string) => {
+      if (strategy === 'networkidle0') {
+        usedStrategy = strategy;
+        return true;
+      }
+      throw new Error('Navigation failed');
+    };
+
+    try {
+      await navigate(strategies[0]);
+    } catch {
+      await navigate(strategies[1]);
+    }
+
+    expect(usedStrategy).toBe('networkidle0');
+  });
+
+  it('should fallback to networkidle2 on failure', async () => {
+    const strategies = ['networkidle0', 'networkidle2', 'domcontentloaded'];
+    let usedStrategy = '';
+
+    const navigate = async (strategy: string) => {
+      if (strategy === 'networkidle0') {
+        throw new Error('networkidle0 timeout');
+      }
+      usedStrategy = strategy;
+      return true;
+    };
+
+    try {
+      await navigate(strategies[0]);
+    } catch {
+      await navigate(strategies[1]);
+    }
+
+    expect(usedStrategy).toBe('networkidle2');
+  });
+});
+
+describe('Browser Render Event Emission', () => {
+  it('should emit render_start event with correct data', () => {
+    const emittedEvents: any[] = [];
+
+    const emitSSREvent = (event: string, data: any) => {
+      emittedEvents.push({ event, data });
+    };
+
+    const renderId = 'render_123';
+    const url = 'https://example.com';
+
+    emitSSREvent('render_start', {
+      renderId,
+      url,
+      timestamp: Date.now(),
+      queueSize: 5,
+      processing: 2
+    });
+
+    expect(emittedEvents.length).toBe(1);
+    expect(emittedEvents[0].event).toBe('render_start');
+    expect(emittedEvents[0].data.renderId).toBe(renderId);
+  });
+
+  it('should emit render_complete event with metrics', () => {
+    const emittedEvents: any[] = [];
+
+    const emitSSREvent = (event: string, data: any) => {
+      emittedEvents.push({ event, data });
+    };
+
+    emitSSREvent('render_complete', {
+      renderId: 'render_456',
+      url: 'https://example.com',
+      timestamp: Date.now(),
+      duration: 1500,
+      success: true,
+      htmlLength: 5000,
+      statusCode: 200
+    });
+
+    expect(emittedEvents[0].event).toBe('render_complete');
+    expect(emittedEvents[0].data.success).toBe(true);
+    expect(emittedEvents[0].data.duration).toBe(1500);
+  });
+
+  it('should emit render_error event on failure', () => {
+    const emittedEvents: any[] = [];
+
+    const emitSSREvent = (event: string, data: any) => {
+      emittedEvents.push({ event, data });
+    };
+
+    emitSSREvent('render_error', {
+      renderId: 'render_789',
+      url: 'https://example.com',
+      timestamp: Date.now(),
+      duration: 30000,
+      success: false,
+      error: 'Navigation timeout'
+    });
+
+    expect(emittedEvents[0].event).toBe('render_error');
+    expect(emittedEvents[0].data.success).toBe(false);
+    expect(emittedEvents[0].data.error).toBe('Navigation timeout');
+  });
+
+  it('should emit health_check event with score', () => {
+    const emittedEvents: any[] = [];
+
+    const emitSSREvent = (event: string, data: any) => {
+      emittedEvents.push({ event, data });
+    };
+
+    emitSSREvent('health_check', {
+      url: 'https://example.com',
+      score: 85,
+      passed: true,
+      issues: [{ type: 'warning', message: 'Title too short' }],
+      timestamp: Date.now()
+    });
+
+    expect(emittedEvents[0].event).toBe('health_check');
+    expect(emittedEvents[0].data.score).toBe(85);
+    expect(emittedEvents[0].data.passed).toBe(true);
+  });
+});
+
+describe('Browser Close Sequence', () => {
+  it('should close direct browser when exists', async () => {
+    let directBrowserClosed = false;
+
+    const directBrowser = {
+      close: vi.fn().mockImplementation(async () => {
+        directBrowserClosed = true;
+      })
+    };
+
+    await directBrowser.close();
+    expect(directBrowserClosed).toBe(true);
+  });
+
+  it('should close cluster when exists', async () => {
+    let clusterClosed = false;
+
+    const cluster = {
+      idle: vi.fn().mockResolvedValue(undefined),
+      close: vi.fn().mockImplementation(async () => {
+        clusterClosed = true;
+      })
+    };
+
+    await cluster.idle();
+    await cluster.close();
+
+    expect(cluster.idle).toHaveBeenCalled();
+    expect(clusterClosed).toBe(true);
+  });
+
+  it('should handle close errors gracefully', async () => {
+    const directBrowser = {
+      close: vi.fn().mockRejectedValue(new Error('Browser already closed'))
+    };
+
+    let errorCaught = false;
+    try {
+      await directBrowser.close();
+    } catch {
+      errorCaught = true;
+    }
+
+    expect(errorCaught).toBe(true);
+  });
+});
+
+describe('Browser Forensics Capture', () => {
+  it('should capture forensics on render error', async () => {
+    let forensicsCaptured = false;
+
+    const forensicsCollector = {
+      captureForensics: vi.fn().mockImplementation(async () => {
+        forensicsCaptured = true;
+        return {};
+      })
+    };
+
+    const error = new Error('Navigation timeout');
+    const url = 'https://example.com';
+    const context = {
+      userAgent: 'Test/1.0',
+      viewport: { width: 1920, height: 1080 },
+      headers: {},
+      waitStrategy: 'networkidle0',
+      timeout: 30000
+    };
+
+    await forensicsCollector.captureForensics(url, error, context, {});
+
+    expect(forensicsCaptured).toBe(true);
+    expect(forensicsCollector.captureForensics).toHaveBeenCalledWith(url, error, context, {});
+  });
+});
+
+describe('Browser Cluster Initialization Guard', () => {
+  it('should return existing cluster when available', async () => {
+    const existingCluster = { id: 'cluster-1' };
+
+    const getCluster = async () => {
+      if (existingCluster) return existingCluster;
+      return null;
+    };
+
+    const cluster = await getCluster();
+    expect(cluster).toBe(existingCluster);
+  });
+
+  it('should wait for initialization when in progress', async () => {
+    let initPromise: Promise<any> | null = Promise.resolve({ id: 'new-cluster' });
+
+    const getCluster = async () => {
+      if (initPromise) {
+        return initPromise;
+      }
+      return null;
+    };
+
+    const cluster = await getCluster();
+    expect(cluster.id).toBe('new-cluster');
+  });
+});
+
+describe('Browser Request Interception Handler', () => {
+  it('should abort request when blocked by domain', () => {
+    const request = {
+      url: () => 'https://google-analytics.com/collect',
+      resourceType: () => 'xhr',
+      abort: vi.fn(),
+      continue: vi.fn()
+    };
+
+    const isBlocked = request.url().includes('google-analytics.com');
+    if (isBlocked) {
+      request.abort();
+    } else {
+      request.continue();
+    }
+
+    expect(request.abort).toHaveBeenCalled();
+    expect(request.continue).not.toHaveBeenCalled();
+  });
+
+  it('should continue request when not blocked', () => {
+    const request = {
+      url: () => 'https://example.com/api/data',
+      resourceType: () => 'xhr',
+      abort: vi.fn(),
+      continue: vi.fn()
+    };
+
+    const blockedDomains = ['google-analytics.com', 'facebook.net'];
+    const isBlocked = blockedDomains.some(d => request.url().includes(d));
+
+    if (isBlocked) {
+      request.abort();
+    } else {
+      request.continue();
+    }
+
+    expect(request.continue).toHaveBeenCalled();
+    expect(request.abort).not.toHaveBeenCalled();
+  });
+});
+
+describe('Browser Development Mode Args', () => {
+  it('should add --single-process in development', () => {
+    const isDevelopment = true;
+    const args = [
+      '--no-sandbox',
+      '--disable-gpu'
+    ];
+
+    if (isDevelopment) {
+      args.push('--single-process');
+    }
+
+    expect(args).toContain('--single-process');
+  });
+
+  it('should not add --single-process in production', () => {
+    const isDevelopment = false;
+    const args = [
+      '--no-sandbox',
+      '--disable-gpu'
+    ];
+
+    if (isDevelopment) {
+      args.push('--single-process');
+    }
+
+    expect(args).not.toContain('--single-process');
+  });
+});

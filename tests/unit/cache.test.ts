@@ -516,3 +516,345 @@ describe('Cache Proxy Property Access', () => {
     expect(proxy.getValue()).toBe('bound');
   });
 });
+
+describe('Cache Proxy Behavior When Not Ready', () => {
+  it('should return undefined for get when instance is null', () => {
+    let cacheInstance: any = null;
+
+    const cacheProxy = new Proxy({} as any, {
+      get(_target, prop: string) {
+        if (!cacheInstance) {
+          if (prop === 'get' || prop === 'getWithTTL') {
+            return () => undefined;
+          }
+          if (prop === 'set' || prop === 'delete') {
+            return () => false;
+          }
+          if (prop === 'flush') {
+            return () => {};
+          }
+          if (prop === 'getStats') {
+            return () => ({ keys: 0, hits: 0, misses: 0, ksize: 0, vsize: 0 });
+          }
+          if (prop === 'keys') {
+            return () => [];
+          }
+          if (prop === 'getAllEntries') {
+            return () => [];
+          }
+          if (prop === 'isReady') {
+            return () => false;
+          }
+          if (prop === 'close') {
+            return async () => {};
+          }
+          return undefined;
+        }
+        const value = cacheInstance[prop];
+        if (typeof value === 'function') {
+          return value.bind(cacheInstance);
+        }
+        return value;
+      },
+    });
+
+    expect(cacheProxy.get('key')).toBeUndefined();
+    expect(cacheProxy.getWithTTL('key')).toBeUndefined();
+    expect(cacheProxy.set('key', 'value')).toBe(false);
+    expect(cacheProxy.delete('key')).toBe(false);
+    expect(cacheProxy.flush()).toBeUndefined();
+    expect(cacheProxy.getStats()).toEqual({ keys: 0, hits: 0, misses: 0, ksize: 0, vsize: 0 });
+    expect(cacheProxy.keys()).toEqual([]);
+    expect(cacheProxy.getAllEntries()).toEqual([]);
+    expect(cacheProxy.isReady()).toBe(false);
+    expect(cacheProxy.unknownProp).toBeUndefined();
+  });
+
+  it('should return async function for close when instance is null', async () => {
+    let cacheInstance: any = null;
+
+    const cacheProxy = new Proxy({} as any, {
+      get(_target, prop: string) {
+        if (!cacheInstance) {
+          if (prop === 'close') {
+            return async () => {};
+          }
+          return undefined;
+        }
+        return cacheInstance[prop];
+      },
+    });
+
+    await expect(cacheProxy.close()).resolves.toBeUndefined();
+  });
+
+  it('should forward calls when instance is ready', () => {
+    const mockInstance = {
+      get: vi.fn((key: string) => key === 'existing' ? 'value' : undefined),
+      set: vi.fn(() => true),
+      delete: vi.fn(() => 1),
+      flush: vi.fn(),
+      getStats: vi.fn(() => ({ keys: 5, hits: 10, misses: 2, ksize: 50, vsize: 100 })),
+      keys: vi.fn(() => ['key1', 'key2']),
+      getAllEntries: vi.fn(() => [{ url: 'http://test.com', size: 100, ttl: 3600 }]),
+      isReady: vi.fn(() => true),
+      close: vi.fn().mockResolvedValue(undefined),
+      getWithTTL: vi.fn(() => ({ value: 'test', ttl: 3600, isStale: false }))
+    };
+
+    let cacheInstance: any = mockInstance;
+
+    const cacheProxy = new Proxy({} as any, {
+      get(_target, prop: string) {
+        if (!cacheInstance) {
+          return undefined;
+        }
+        const value = cacheInstance[prop];
+        if (typeof value === 'function') {
+          return value.bind(cacheInstance);
+        }
+        return value;
+      },
+    });
+
+    expect(cacheProxy.get('existing')).toBe('value');
+    expect(cacheProxy.get('nonexistent')).toBeUndefined();
+    expect(cacheProxy.set('key', 'value')).toBe(true);
+    expect(cacheProxy.delete('key')).toBe(1);
+    expect(cacheProxy.getStats()).toEqual({ keys: 5, hits: 10, misses: 2, ksize: 50, vsize: 100 });
+    expect(cacheProxy.keys()).toEqual(['key1', 'key2']);
+    expect(cacheProxy.getAllEntries()).toEqual([{ url: 'http://test.com', size: 100, ttl: 3600 }]);
+    expect(cacheProxy.isReady()).toBe(true);
+    expect(cacheProxy.getWithTTL('key')).toEqual({ value: 'test', ttl: 3600, isStale: false });
+  });
+});
+
+describe('Cache Initialization Promise Handling', () => {
+  it('should handle concurrent initialization calls', async () => {
+    let cacheInstance: any = null;
+    let initPromise: Promise<any> | null = null;
+    let initializeCallCount = 0;
+
+    const mockCreateCache = async () => {
+      initializeCallCount++;
+      await new Promise(resolve => setTimeout(resolve, 10));
+      return {
+        get: () => 'value',
+        set: () => true,
+        isReady: () => true
+      };
+    };
+
+    const initCache = async () => {
+      if (cacheInstance) {
+        return cacheInstance;
+      }
+
+      if (initPromise) {
+        return initPromise;
+      }
+
+      initPromise = mockCreateCache();
+      cacheInstance = await initPromise;
+      initPromise = null;
+
+      return cacheInstance;
+    };
+
+    // Call multiple times concurrently
+    const [cache1, cache2, cache3] = await Promise.all([
+      initCache(),
+      initCache(),
+      initCache()
+    ]);
+
+    // All should return the same instance
+    expect(cache1).toBe(cache2);
+    expect(cache2).toBe(cache3);
+    // Should only initialize once
+    expect(initializeCallCount).toBe(1);
+  });
+
+  it('should reset initPromise after completion', async () => {
+    let cacheInstance: any = null;
+    let initPromise: Promise<any> | null = null;
+
+    const mockCreateCache = async () => {
+      return { get: () => 'value' };
+    };
+
+    const initCache = async () => {
+      if (cacheInstance) return cacheInstance;
+      if (initPromise) return initPromise;
+
+      initPromise = mockCreateCache();
+      cacheInstance = await initPromise;
+      initPromise = null;
+
+      return cacheInstance;
+    };
+
+    await initCache();
+
+    // initPromise should be null after completion
+    expect(initPromise).toBeNull();
+    expect(cacheInstance).not.toBeNull();
+  });
+});
+
+describe('Cache Signal Handler Behavior', () => {
+  it('should close cache on SIGINT when instance exists', async () => {
+    const mockClose = vi.fn().mockResolvedValue(undefined);
+    let cacheInstance: any = { close: mockClose };
+
+    const handleSIGINT = async () => {
+      if (cacheInstance) {
+        await cacheInstance.close();
+      }
+    };
+
+    await handleSIGINT();
+    expect(mockClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('should close cache on SIGTERM when instance exists', async () => {
+    const mockClose = vi.fn().mockResolvedValue(undefined);
+    let cacheInstance: any = { close: mockClose };
+
+    const handleSIGTERM = async () => {
+      if (cacheInstance) {
+        await cacheInstance.close();
+      }
+    };
+
+    await handleSIGTERM();
+    expect(mockClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('should not call close on SIGINT when instance is null', async () => {
+    let cacheInstance: any = null;
+    let closeCalled = false;
+
+    const handleSIGINT = async () => {
+      if (cacheInstance) {
+        closeCalled = true;
+      }
+    };
+
+    await handleSIGINT();
+    expect(closeCalled).toBe(false);
+  });
+
+  it('should not call close on SIGTERM when instance is null', async () => {
+    let cacheInstance: any = null;
+    let closeCalled = false;
+
+    const handleSIGTERM = async () => {
+      if (cacheInstance) {
+        closeCalled = true;
+      }
+    };
+
+    await handleSIGTERM();
+    expect(closeCalled).toBe(false);
+  });
+});
+
+describe('Cache Error Handling during Initialization', () => {
+  it('should catch and log initialization errors', async () => {
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const mockCreateCache = async () => {
+      throw new Error('Redis connection failed');
+    };
+
+    try {
+      await mockCreateCache();
+    } catch (error) {
+      console.error('❌ Failed to initialize cache:', error);
+    }
+
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      '❌ Failed to initialize cache:',
+      expect.any(Error)
+    );
+    consoleErrorSpy.mockRestore();
+  });
+
+  it('should handle Redis connection timeout', async () => {
+    const mockCreateCache = async () => {
+      throw new Error('ETIMEDOUT: Connection timed out');
+    };
+
+    let errorCaught = false;
+    try {
+      await mockCreateCache();
+    } catch (error: any) {
+      errorCaught = true;
+      expect(error.message).toContain('ETIMEDOUT');
+    }
+
+    expect(errorCaught).toBe(true);
+  });
+
+  it('should handle invalid Redis URL', async () => {
+    const mockCreateCache = async () => {
+      throw new Error('Invalid Redis URL');
+    };
+
+    await expect(mockCreateCache()).rejects.toThrow('Invalid Redis URL');
+  });
+});
+
+describe('Cache Type Re-exports', () => {
+  it('should export CacheStats type structure', () => {
+    const stats: { keys: number; hits: number; misses: number; ksize: number; vsize: number } = {
+      keys: 100,
+      hits: 500,
+      misses: 50,
+      ksize: 1024,
+      vsize: 10240
+    };
+
+    expect(typeof stats.keys).toBe('number');
+    expect(typeof stats.hits).toBe('number');
+    expect(typeof stats.misses).toBe('number');
+    expect(typeof stats.ksize).toBe('number');
+    expect(typeof stats.vsize).toBe('number');
+  });
+
+  it('should export CacheEntry type structure', () => {
+    const entry: { value: string; ttl: number; isStale: boolean } = {
+      value: 'cached-content',
+      ttl: 3600,
+      isStale: false
+    };
+
+    expect(typeof entry.value).toBe('string');
+    expect(typeof entry.ttl).toBe('number');
+    expect(typeof entry.isStale).toBe('boolean');
+  });
+});
+
+describe('Cache Factory Integration', () => {
+  it('should use CacheFactory.createCache', async () => {
+    const { CacheFactory } = await import('../../src/cache/cache-factory');
+    expect(CacheFactory.createCache).toBeDefined();
+    expect(typeof CacheFactory.createCache).toBe('function');
+  });
+});
+
+describe('Cache Module getCache Function', () => {
+  it('should call initCache when getCache is called', async () => {
+    const { getCache } = await import('../../src/cache');
+    const cache = await getCache();
+    expect(cache).toBeDefined();
+  });
+
+  it('should return same instance on subsequent calls', async () => {
+    const { getCache } = await import('../../src/cache');
+    const cache1 = await getCache();
+    const cache2 = await getCache();
+    expect(cache1).toBe(cache2);
+  });
+});

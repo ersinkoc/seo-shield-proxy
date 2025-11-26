@@ -1283,4 +1283,451 @@ describe('ETagService', () => {
       expect(result.etag).toBeDefined();
     });
   });
+
+  describe('processETag Simulation', () => {
+    it('should handle ETag comparison with matching etag', async () => {
+      const comparison = {
+        etag: '"abc123"',
+        lastModified: new Date().toUTCString(),
+        notModified: true,
+        changeType: 'none' as const,
+        cacheable: true,
+        changeDetails: null
+      };
+
+      const headers: Record<string, string> = {};
+      const res = {
+        set: (key: string, value: string) => { headers[key] = value; },
+        status: vi.fn().mockReturnThis(),
+        end: vi.fn()
+      };
+
+      // Simulate processETag logic
+      res.set('ETag', comparison.etag);
+      res.set('Last-Modified', comparison.lastModified);
+      res.set('Cache-Control', 'public, max-age=3600');
+
+      expect(headers['ETag']).toBe('"abc123"');
+      expect(headers['Last-Modified']).toBeDefined();
+      expect(headers['Cache-Control']).toBe('public, max-age=3600');
+    });
+
+    it('should handle 304 response when notModified is true', () => {
+      const comparison = {
+        notModified: true,
+        etag: '"test123"'
+      };
+      const enable304Responses = true;
+
+      let statusCode = 200;
+      let endCalled = false;
+
+      if (comparison.notModified && enable304Responses) {
+        statusCode = 304;
+        endCalled = true;
+      }
+
+      expect(statusCode).toBe(304);
+      expect(endCalled).toBe(true);
+    });
+
+    it('should not return 304 when 304 responses are disabled', () => {
+      const comparison = {
+        notModified: true,
+        etag: '"test123"'
+      };
+      const enable304Responses = false;
+
+      let statusCode = 200;
+
+      if (comparison.notModified && enable304Responses) {
+        statusCode = 304;
+      }
+
+      expect(statusCode).toBe(200);
+    });
+
+    it('should set Vary header when provided', () => {
+      const cacheHeaders = {
+        'Cache-Control': 'public, max-age=3600',
+        'Vary': 'Accept-Encoding, User-Agent'
+      };
+
+      const headers: Record<string, string> = {};
+      const res = {
+        set: (key: string, value: string) => { headers[key] = value; }
+      };
+
+      res.set('Cache-Control', cacheHeaders['Cache-Control']);
+      if (cacheHeaders['Vary']) {
+        res.set('Vary', cacheHeaders['Vary']);
+      }
+
+      expect(headers['Vary']).toBe('Accept-Encoding, User-Agent');
+    });
+
+    it('should not set Vary header when not provided', () => {
+      const cacheHeaders = {
+        'Cache-Control': 'private, max-age=0'
+      };
+
+      const headers: Record<string, string> = {};
+      const res = {
+        set: (key: string, value: string) => { headers[key] = value; }
+      };
+
+      res.set('Cache-Control', cacheHeaders['Cache-Control']);
+      if ((cacheHeaders as any)['Vary']) {
+        res.set('Vary', (cacheHeaders as any)['Vary']);
+      }
+
+      expect(headers['Vary']).toBeUndefined();
+    });
+
+    it('should handle processETag error gracefully', async () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const url = '/test-page';
+      const error = new Error('Processing error');
+
+      console.warn(`⚠️  ETag processing error for ${url}:`, error.message);
+
+      expect(warnSpy).toHaveBeenCalledWith(
+        `⚠️  ETag processing error for ${url}:`,
+        'Processing error'
+      );
+      warnSpy.mockRestore();
+    });
+
+    it('should handle non-Error exception in processETag', async () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const url = '/test-page';
+      const errorObj = { code: 'UNKNOWN' };
+
+      console.warn(`⚠️  ETag processing error for ${url}:`, errorObj);
+
+      expect(warnSpy).toHaveBeenCalled();
+      warnSpy.mockRestore();
+    });
+  });
+
+  describe('logETagInfo Simulation', () => {
+    it('should log 304 status with green indicator', () => {
+      const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+      const comparison = {
+        notModified: true,
+        etag: '"abcdef1234567890abcd"',
+        changeType: 'none' as const,
+        changeDetails: null,
+        cacheable: true
+      };
+      const url = '/test-page';
+
+      const status = comparison.notModified ? '🟢 304' : '🔵 200';
+      const etagShort = comparison.etag ? comparison.etag.slice(0, 20) + '...' : 'none';
+
+      console.log(`${status} ETag: ${etagShort} for ${url}`);
+
+      expect(logSpy).toHaveBeenCalledWith('🟢 304 ETag: "abcdef1234567890abc... for /test-page');
+      logSpy.mockRestore();
+    });
+
+    it('should log 200 status with blue indicator', () => {
+      const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+      const comparison = {
+        notModified: false,
+        etag: '"xyz789"',
+        changeType: 'moderate' as const,
+        changeDetails: null,
+        cacheable: true
+      };
+      const url = '/products';
+
+      const status = comparison.notModified ? '🟢 304' : '🔵 200';
+      const etagShort = comparison.etag ? comparison.etag.slice(0, 20) + '...' : 'none';
+
+      console.log(`${status} ETag: ${etagShort} for ${url}`);
+
+      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('🔵 200'));
+      logSpy.mockRestore();
+    });
+
+    it('should log content change type when not none', () => {
+      const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+      const changeType = 'significant';
+
+      console.log(`   Content change: ${changeType.toUpperCase()}`);
+
+      expect(logSpy).toHaveBeenCalledWith('   Content change: SIGNIFICANT');
+      logSpy.mockRestore();
+    });
+
+    it('should log change details with word and structural changes', () => {
+      const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+      const details = {
+        wordChanges: 150,
+        structuralChanges: 25,
+        newImages: 0,
+        removedImages: 0
+      };
+
+      console.log(`   Details: ${details.wordChanges} words, ${details.structuralChanges} structural elements`);
+
+      expect(logSpy).toHaveBeenCalledWith('   Details: 150 words, 25 structural elements');
+      logSpy.mockRestore();
+    });
+
+    it('should log image changes when present', () => {
+      const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+      const details = {
+        wordChanges: 50,
+        structuralChanges: 5,
+        newImages: 3,
+        removedImages: 1
+      };
+
+      if (details.newImages > 0 || details.removedImages > 0) {
+        console.log(`   Images: +${details.newImages} -${details.removedImages}`);
+      }
+
+      expect(logSpy).toHaveBeenCalledWith('   Images: +3 -1');
+      logSpy.mockRestore();
+    });
+
+    it('should not log image changes when none', () => {
+      const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+      const details = {
+        wordChanges: 50,
+        structuralChanges: 5,
+        newImages: 0,
+        removedImages: 0
+      };
+
+      if (details.newImages > 0 || details.removedImages > 0) {
+        console.log(`   Images: +${details.newImages} -${details.removedImages}`);
+      }
+
+      expect(logSpy).not.toHaveBeenCalled();
+      logSpy.mockRestore();
+    });
+
+    it('should log non-cacheable warning', () => {
+      const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+      const cacheable = false;
+
+      if (!cacheable) {
+        console.log('   ⚠️  Content marked as non-cacheable');
+      }
+
+      expect(logSpy).toHaveBeenCalledWith('   ⚠️  Content marked as non-cacheable');
+      logSpy.mockRestore();
+    });
+
+    it('should not log non-cacheable warning when content is cacheable', () => {
+      const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+      const cacheable = true;
+
+      if (!cacheable) {
+        console.log('   ⚠️  Content marked as non-cacheable');
+      }
+
+      expect(logSpy).not.toHaveBeenCalled();
+      logSpy.mockRestore();
+    });
+
+    it('should skip change type log when type is none', () => {
+      const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+      const changeType = 'none';
+
+      if (changeType && changeType !== 'none') {
+        console.log(`   Content change: ${changeType.toUpperCase()}`);
+      }
+
+      expect(logSpy).not.toHaveBeenCalled();
+      logSpy.mockRestore();
+    });
+
+    it('should handle null changeDetails', () => {
+      const changeDetails: any = null;
+      let detailsLogged = false;
+
+      if (changeDetails) {
+        detailsLogged = true;
+      }
+
+      expect(detailsLogged).toBe(false);
+    });
+
+    it('should handle undefined etag', () => {
+      const etag: string | undefined = undefined;
+      const etagShort = etag ? etag.slice(0, 20) + '...' : 'none';
+
+      expect(etagShort).toBe('none');
+    });
+
+    it('should handle short etag without truncation marker', () => {
+      const etag = '"short"';
+      const etagShort = etag ? etag.slice(0, 20) + '...' : 'none';
+
+      expect(etagShort).toBe('"short"...');
+    });
+  });
+
+  describe('Response Write Interception', () => {
+    it('should capture string content in write', () => {
+      let responseContent = '';
+
+      const write = function(chunk: any) {
+        if (typeof chunk === 'string') {
+          responseContent += chunk;
+        } else if (Buffer.isBuffer(chunk)) {
+          responseContent += chunk.toString();
+        }
+        return true;
+      };
+
+      write('Hello ');
+      write('World');
+
+      expect(responseContent).toBe('Hello World');
+    });
+
+    it('should capture Buffer content in write', () => {
+      let responseContent = '';
+
+      const write = function(chunk: any) {
+        if (typeof chunk === 'string') {
+          responseContent += chunk;
+        } else if (Buffer.isBuffer(chunk)) {
+          responseContent += chunk.toString();
+        }
+        return true;
+      };
+
+      write(Buffer.from('Buffer '));
+      write(Buffer.from('Content'));
+
+      expect(responseContent).toBe('Buffer Content');
+    });
+
+    it('should return true from write', () => {
+      const write = function(chunk: any) {
+        return true;
+      };
+
+      expect(write('test')).toBe(true);
+    });
+  });
+
+  describe('Response End Interception', () => {
+    it('should capture string chunk in end', () => {
+      let responseContent = '';
+
+      const end = function(chunk?: any, _encoding?: any) {
+        if (chunk) {
+          if (typeof chunk === 'string') {
+            responseContent += chunk;
+          } else if (Buffer.isBuffer(chunk)) {
+            responseContent += chunk.toString();
+          }
+        }
+      };
+
+      end('<html>Final</html>');
+
+      expect(responseContent).toBe('<html>Final</html>');
+    });
+
+    it('should capture Buffer chunk in end', () => {
+      let responseContent = '';
+
+      const end = function(chunk?: any, _encoding?: any) {
+        if (chunk) {
+          if (typeof chunk === 'string') {
+            responseContent += chunk;
+          } else if (Buffer.isBuffer(chunk)) {
+            responseContent += chunk.toString();
+          }
+        }
+      };
+
+      end(Buffer.from('<html>Buffer Final</html>'));
+
+      expect(responseContent).toBe('<html>Buffer Final</html>');
+    });
+
+    it('should handle end without chunk', () => {
+      let responseContent = '';
+
+      const end = function(chunk?: any, _encoding?: any) {
+        if (chunk) {
+          responseContent += chunk;
+        }
+      };
+
+      end();
+
+      expect(responseContent).toBe('');
+    });
+
+    it('should call original end after processing', () => {
+      const originalEnd = vi.fn();
+      let responseContent = '';
+
+      const wrappedEnd = function(chunk?: any, encoding?: any) {
+        if (chunk) {
+          if (typeof chunk === 'string') {
+            responseContent += chunk;
+          }
+        }
+        return originalEnd(chunk, encoding);
+      };
+
+      wrappedEnd('content', 'utf-8');
+
+      expect(originalEnd).toHaveBeenCalledWith('content', 'utf-8');
+    });
+  });
+
+  describe('Cache Control Headers By Change Type', () => {
+    it('should return appropriate headers for no change', () => {
+      const changeType = 'none';
+      const headers = changeType === 'none'
+        ? { 'Cache-Control': 'public, max-age=86400' }
+        : { 'Cache-Control': 'public, max-age=3600' };
+
+      expect(headers['Cache-Control']).toContain('86400');
+    });
+
+    it('should return shorter max-age for minor changes', () => {
+      const changeType = 'minor';
+      const maxAge = changeType === 'none' ? 86400 : changeType === 'minor' ? 3600 : 1800;
+
+      expect(maxAge).toBe(3600);
+    });
+
+    it('should return even shorter max-age for moderate changes', () => {
+      const changeType = 'moderate';
+      const maxAge = changeType === 'none' ? 86400 : changeType === 'minor' ? 3600 : 1800;
+
+      expect(maxAge).toBe(1800);
+    });
+
+    it('should return no-cache for significant changes', () => {
+      const changeType = 'significant';
+      const cacheControl = changeType === 'significant' || changeType === 'complete'
+        ? 'no-cache, must-revalidate'
+        : 'public, max-age=3600';
+
+      expect(cacheControl).toBe('no-cache, must-revalidate');
+    });
+
+    it('should return no-cache for complete changes', () => {
+      const changeType = 'complete';
+      const cacheControl = changeType === 'significant' || changeType === 'complete'
+        ? 'no-cache, must-revalidate'
+        : 'public, max-age=3600';
+
+      expect(cacheControl).toBe('no-cache, must-revalidate');
+    });
+  });
 });

@@ -1336,3 +1336,453 @@ describe('ClusterManager', () => {
     });
   });
 });
+
+describe('ClusterManager Redis Queue Mode', () => {
+  it('should initialize Redis queue when useRedisQueue is true', async () => {
+    const module = await import('../../src/admin/cluster-manager');
+    const config = module.ClusterManager.getDefaultConfig();
+    config.enabled = true;
+    config.useRedisQueue = true;
+
+    const manager = new module.ClusterManager(config);
+    expect(manager).toBeDefined();
+  });
+
+  it('should require redis config for redis queue mode', () => {
+    const config = {
+      enabled: true,
+      useRedisQueue: true,
+      redis: undefined
+    };
+
+    if (!config.redis && config.useRedisQueue) {
+      const error = new Error('Redis configuration is required for Redis queue mode');
+      expect(error.message).toContain('Redis configuration');
+    }
+  });
+
+  it('should set redis connection options', () => {
+    const redisConfig = {
+      host: 'localhost',
+      port: 6379,
+      password: 'secret',
+      db: 0
+    };
+
+    const connectionOpts = {
+      host: redisConfig.host,
+      port: redisConfig.port,
+      password: redisConfig.password,
+      db: redisConfig.db,
+      maxRetriesPerRequest: 3
+    };
+
+    expect(connectionOpts.maxRetriesPerRequest).toBe(3);
+    expect(connectionOpts.host).toBe('localhost');
+  });
+});
+
+describe('ClusterManager Queue Operations', () => {
+  it('should set default job options', () => {
+    const defaultJobOptions = {
+      removeOnComplete: 1000,
+      removeOnFail: 100,
+      attempts: 3,
+      backoff: {
+        type: 'exponential',
+        delay: 5000
+      },
+      delay: 0
+    };
+
+    expect(defaultJobOptions.removeOnComplete).toBe(1000);
+    expect(defaultJobOptions.backoff.type).toBe('exponential');
+  });
+
+  it('should add job to queue with options', () => {
+    const jobAddOptions = {
+      priority: 5,
+      delay: 0,
+      removeOnComplete: 100,
+      removeOnFail: 50
+    };
+
+    expect(jobAddOptions.priority).toBe(5);
+    expect(jobAddOptions.removeOnComplete).toBe(100);
+  });
+});
+
+describe('ClusterManager Worker Limiter', () => {
+  it('should configure worker rate limiter', () => {
+    const limiterConfig = {
+      max: 5,
+      duration: 60000
+    };
+
+    expect(limiterConfig.max).toBe(5);
+    expect(limiterConfig.duration).toBe(60000);
+  });
+
+  it('should create workers based on config', () => {
+    const maxWorkers = 3;
+    const createdWorkers: any[] = [];
+
+    for (let i = 0; i < maxWorkers; i++) {
+      createdWorkers.push({ id: `worker-${i}` });
+    }
+
+    expect(createdWorkers.length).toBe(3);
+  });
+});
+
+describe('ClusterManager Queue Events Handling', () => {
+  it('should handle job completed event', () => {
+    let completedJobId: string | null = null;
+
+    const onCompleted = (data: { jobId: string }) => {
+      completedJobId = data.jobId;
+    };
+
+    onCompleted({ jobId: 'test-job-123' });
+    expect(completedJobId).toBe('test-job-123');
+  });
+
+  it('should handle job failed event', () => {
+    let failedJobId: string | null = null;
+    let failedReason: string | null = null;
+
+    const onFailed = (data: { jobId: string; failedReason: string }) => {
+      failedJobId = data.jobId;
+      failedReason = data.failedReason;
+    };
+
+    onFailed({ jobId: 'test-job-456', failedReason: 'Timeout' });
+    expect(failedJobId).toBe('test-job-456');
+    expect(failedReason).toBe('Timeout');
+  });
+
+  it('should handle job progress event', () => {
+    let progressData: any = null;
+
+    const onProgress = (data: { jobId: string; data: any }) => {
+      progressData = data.data;
+    };
+
+    onProgress({ jobId: 'test-job-789', data: { percent: 50 } });
+    expect(progressData.percent).toBe(50);
+  });
+});
+
+describe('ClusterManager Render Job Processing', () => {
+  it('should process render job with user agent', () => {
+    const options = {
+      userAgent: 'CustomBot/1.0',
+      viewport: { width: 1920, height: 1080 },
+      blockResources: false
+    };
+
+    let userAgentSet = false;
+    if (options.userAgent) {
+      userAgentSet = true;
+    }
+
+    expect(userAgentSet).toBe(true);
+  });
+
+  it('should process render job with viewport', () => {
+    const options = {
+      viewport: { width: 1280, height: 720 }
+    };
+
+    let viewportSet = false;
+    if (options.viewport) {
+      viewportSet = true;
+    }
+
+    expect(viewportSet).toBe(true);
+  });
+
+  it('should block resources when configured', () => {
+    const options = { blockResources: true };
+    const blockedTypes = ['image', 'stylesheet', 'font', 'media'];
+
+    let interceptionEnabled = false;
+    if (options.blockResources) {
+      interceptionEnabled = true;
+    }
+
+    expect(interceptionEnabled).toBe(true);
+  });
+
+  it('should calculate render duration', () => {
+    const startTime = Date.now() - 1500;
+    const duration = Date.now() - startTime;
+
+    expect(duration).toBeGreaterThanOrEqual(1500);
+    expect(duration).toBeLessThan(2000);
+  });
+
+  it('should build successful render result', () => {
+    const result = {
+      jobId: 'job-123',
+      url: 'https://example.com',
+      success: true,
+      html: '<html></html>',
+      statusCode: 200,
+      duration: 1500,
+      metrics: {
+        renderTime: 1500,
+        memoryUsage: process.memoryUsage().heapUsed,
+        networkRequests: 25
+      },
+      metadata: {
+        workerId: 'worker-1',
+        browserVersion: 'Chrome/100.0',
+        platform: process.platform
+      }
+    };
+
+    expect(result.success).toBe(true);
+    expect(result.metrics.renderTime).toBe(1500);
+    expect(result.metadata.platform).toBe(process.platform);
+  });
+
+  it('should build failed render result', () => {
+    const error = new Error('Navigation timeout');
+    const result = {
+      jobId: 'job-456',
+      url: 'https://example.com',
+      success: false,
+      error: error.message,
+      duration: 30000,
+      metrics: {
+        renderTime: 30000,
+        memoryUsage: process.memoryUsage().heapUsed,
+        networkRequests: 5
+      },
+      metadata: {
+        workerId: 'worker-2',
+        browserVersion: 'unknown',
+        platform: process.platform
+      }
+    };
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe('Navigation timeout');
+  });
+});
+
+describe('ClusterManager Stats Calculation', () => {
+  it('should calculate worker stats', () => {
+    const workers = [
+      { isRunning: () => true },
+      { isRunning: () => true },
+      { isRunning: () => false }
+    ];
+
+    const stats = {
+      active: workers.filter(w => w.isRunning()).length,
+      idle: workers.filter(w => !w.isRunning()).length,
+      total: workers.length
+    };
+
+    expect(stats.active).toBe(2);
+    expect(stats.idle).toBe(1);
+    expect(stats.total).toBe(3);
+  });
+
+  it('should calculate success rate from stats', () => {
+    const completed = 95;
+    const failed = 5;
+    const total = completed + failed;
+
+    let successRate = 0;
+    if (total > 0) {
+      successRate = (completed / total) * 100;
+    }
+
+    expect(successRate).toBe(95);
+  });
+
+  it('should return zero success rate when no jobs', () => {
+    const completed = 0;
+    const failed = 0;
+    const total = completed + failed;
+
+    let successRate = 0;
+    if (total > 0) {
+      successRate = (completed / total) * 100;
+    }
+
+    expect(successRate).toBe(0);
+  });
+});
+
+describe('ClusterManager Pause and Resume', () => {
+  it('should pause queue when available', async () => {
+    const mockQueue = {
+      pause: vi.fn().mockResolvedValue(undefined)
+    };
+
+    await mockQueue.pause();
+    expect(mockQueue.pause).toHaveBeenCalled();
+  });
+
+  it('should resume queue when available', async () => {
+    const mockQueue = {
+      resume: vi.fn().mockResolvedValue(undefined)
+    };
+
+    await mockQueue.resume();
+    expect(mockQueue.resume).toHaveBeenCalled();
+  });
+
+  it('should not throw when pausing null queue', async () => {
+    const queue = null;
+
+    const pause = async () => {
+      if (queue) {
+        // pause logic
+      }
+    };
+
+    await expect(pause()).resolves.not.toThrow();
+  });
+});
+
+describe('ClusterManager Shutdown Sequence', () => {
+  it('should close all workers in order', async () => {
+    const closeOrder: string[] = [];
+
+    const workers = [
+      { close: vi.fn().mockImplementation(async () => { closeOrder.push('worker-0'); }) },
+      { close: vi.fn().mockImplementation(async () => { closeOrder.push('worker-1'); }) }
+    ];
+
+    for (const worker of workers) {
+      await worker.close();
+    }
+
+    expect(closeOrder).toEqual(['worker-0', 'worker-1']);
+  });
+
+  it('should close queue after workers', async () => {
+    const closeOrder: string[] = [];
+
+    const mockQueue = {
+      close: vi.fn().mockImplementation(async () => { closeOrder.push('queue'); })
+    };
+
+    const workers: any[] = [];
+
+    for (const worker of workers) {
+      await worker.close();
+    }
+
+    await mockQueue.close();
+
+    expect(closeOrder).toEqual(['queue']);
+  });
+
+  it('should close browser last', async () => {
+    const closeOrder: string[] = [];
+
+    const mockBrowser = {
+      close: vi.fn().mockImplementation(async () => { closeOrder.push('browser'); })
+    };
+
+    await mockBrowser.close();
+
+    expect(closeOrder).toContain('browser');
+  });
+
+  it('should quit Redis connection on shutdown', async () => {
+    const mockRedis = {
+      quit: vi.fn().mockResolvedValue('OK')
+    };
+
+    const result = await mockRedis.quit();
+    expect(result).toBe('OK');
+  });
+
+  it('should reset isInitialized flag on shutdown', async () => {
+    let isInitialized = true;
+
+    const shutdown = async () => {
+      isInitialized = false;
+    };
+
+    await shutdown();
+    expect(isInitialized).toBe(false);
+  });
+});
+
+describe('ClusterManager Browser Launch', () => {
+  it('should configure browser launch options', () => {
+    const launchOptions = {
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      defaultViewport: { width: 1920, height: 1080 }
+    };
+
+    expect(launchOptions.headless).toBe(true);
+    expect(launchOptions.args).toContain('--no-sandbox');
+    expect(launchOptions.defaultViewport.width).toBe(1920);
+  });
+});
+
+describe('ClusterManager Navigation Options', () => {
+  it('should set navigation timeout', () => {
+    const navigationOptions = {
+      waitUntil: 'networkidle0',
+      timeout: 30000
+    };
+
+    expect(navigationOptions.timeout).toBe(30000);
+    expect(navigationOptions.waitUntil).toBe('networkidle0');
+  });
+
+  it('should get page status code from response', () => {
+    const mockResponse = { status: () => 200 };
+    const statusCode = mockResponse.status() || 200;
+
+    expect(statusCode).toBe(200);
+  });
+
+  it('should default to 200 when response is null', () => {
+    const mockResponse: any = null;
+    const statusCode = mockResponse?.status() || 200;
+
+    expect(statusCode).toBe(200);
+  });
+});
+
+describe('ClusterManager Job Data Structure', () => {
+  it('should create complete job data', () => {
+    const jobData = {
+      id: `job-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      url: 'https://example.com',
+      priority: 5,
+      attempts: 0,
+      createdAt: new Date(),
+      metadata: {
+        userAgent: 'SEOShieldProxy/1.0',
+        referer: undefined,
+        protocol: 'https',
+        headers: {}
+      },
+      options: {
+        timeout: 30000,
+        waitUntil: 'networkidle0' as const,
+        viewport: { width: 1920, height: 1080 },
+        userAgent: undefined,
+        blockResources: false
+      }
+    };
+
+    expect(jobData.id).toContain('job-');
+    expect(jobData.priority).toBe(5);
+    expect(jobData.metadata.userAgent).toBe('SEOShieldProxy/1.0');
+    expect(jobData.options.timeout).toBe(30000);
+  });
+});

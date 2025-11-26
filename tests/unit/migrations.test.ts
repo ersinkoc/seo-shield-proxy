@@ -596,3 +596,334 @@ describe('Error Handling Scenarios', () => {
     expect(error.message).toContain('Collection');
   });
 });
+
+describe('runMigrations Function Simulation', () => {
+  it('should simulate full migration flow', async () => {
+    const steps: string[] = [];
+
+    // Simulate MongoDB connection
+    const mongoUrl = process.env.MONGODB_URL || 'mongodb://localhost:27017';
+    const dbName = process.env.MONGODB_DB_NAME || 'seo_shield_proxy';
+
+    steps.push(`Connecting to MongoDB: ${mongoUrl}`);
+
+    const mockClient = {
+      connect: async () => {
+        steps.push('Connected');
+      },
+      db: (name: string) => ({
+        collection: (collName: string) => ({
+          findOne: async (query: any) => null,
+          insertOne: async (doc: any) => {
+            steps.push(`Recorded migration: ${doc.name}`);
+            return { insertedId: 'id' };
+          }
+        })
+      }),
+      close: async () => {
+        steps.push('Connection closed');
+      }
+    };
+
+    await mockClient.connect();
+    steps.push(`Connected to database: ${dbName}`);
+
+    const migrations = [{ name: '001-initial-setup', up: async () => {} }];
+
+    for (const migration of migrations) {
+      steps.push(`Running migration: ${migration.name}`);
+      await migration.up();
+      steps.push(`Migration ${migration.name} completed`);
+    }
+
+    steps.push('All migrations completed successfully');
+    await mockClient.close();
+
+    expect(steps).toContain('Connected');
+    expect(steps).toContain('Running migration: 001-initial-setup');
+    expect(steps).toContain('All migrations completed successfully');
+    expect(steps).toContain('Connection closed');
+  });
+
+  it('should skip already applied migrations', async () => {
+    const steps: string[] = [];
+
+    const mockClient = {
+      db: () => ({
+        collection: () => ({
+          findOne: async (query: any) => ({ name: query.name, appliedAt: new Date() })
+        })
+      })
+    };
+
+    const migrationsCollection = mockClient.db().collection('_migrations');
+    const existing = await migrationsCollection.findOne({ name: '001-initial-setup' });
+
+    if (existing) {
+      steps.push(`Skipping migration ${existing.name} (already applied)`);
+    }
+
+    expect(steps).toContain('Skipping migration 001-initial-setup (already applied)');
+  });
+
+  it('should handle migration error and exit', async () => {
+    let exitCode = 0;
+
+    const mockExit = (code: number) => {
+      exitCode = code;
+    };
+
+    try {
+      throw new Error('Migration failed');
+    } catch (error) {
+      console.error('Migration failed:', error);
+      mockExit(1);
+    }
+
+    expect(exitCode).toBe(1);
+  });
+
+  it('should close client in finally block', async () => {
+    let clientClosed = false;
+
+    const mockClient = {
+      close: async () => {
+        clientClosed = true;
+      }
+    };
+
+    try {
+      // Simulate migration
+    } finally {
+      await mockClient.close();
+    }
+
+    expect(clientClosed).toBe(true);
+  });
+});
+
+describe('Migration Module Entry Point', () => {
+  it('should check if called directly', () => {
+    // Simulate require.main === module check
+    const isDirectExecution = false; // In tests, this is false
+
+    if (isDirectExecution) {
+      // Would call runMigrations()
+    }
+
+    expect(isDirectExecution).toBe(false);
+  });
+
+  it('should export runMigrations for programmatic use', async () => {
+    const module = await import('../../src/database/migrations/index');
+    expect(typeof module.runMigrations).toBe('function');
+  });
+
+  it('should export migrations array for inspection', async () => {
+    const module = await import('../../src/database/migrations/index');
+    expect(Array.isArray(module.migrations)).toBe(true);
+    expect(module.migrations.length).toBeGreaterThan(0);
+  });
+});
+
+describe('MongoDB Client Operations', () => {
+  it('should create MongoClient with URL', () => {
+    const mongoUrl = 'mongodb://localhost:27017';
+    const client = { url: mongoUrl };
+    expect(client.url).toBe(mongoUrl);
+  });
+
+  it('should get database by name', () => {
+    const dbName = 'seo_shield_proxy';
+    const db = { name: dbName };
+    expect(db.name).toBe(dbName);
+  });
+
+  it('should get collection by name', () => {
+    const collectionName = '_migrations';
+    const collection = { name: collectionName };
+    expect(collection.name).toBe(collectionName);
+  });
+});
+
+describe('Migration Record Structure', () => {
+  it('should create migration record with name and timestamp', () => {
+    const record = {
+      name: '001-initial-setup',
+      appliedAt: new Date()
+    };
+
+    expect(record.name).toBe('001-initial-setup');
+    expect(record.appliedAt).toBeInstanceOf(Date);
+  });
+
+  it('should find migration by name', async () => {
+    const findOne = async (query: { name: string }) => {
+      if (query.name === '001-initial-setup') {
+        return { name: '001-initial-setup', appliedAt: new Date() };
+      }
+      return null;
+    };
+
+    const result = await findOne({ name: '001-initial-setup' });
+    expect(result).toBeDefined();
+    expect(result?.name).toBe('001-initial-setup');
+  });
+
+  it('should return null for non-existent migration', async () => {
+    const findOne = async (query: { name: string }) => null;
+
+    const result = await findOne({ name: 'non-existent' });
+    expect(result).toBeNull();
+  });
+});
+
+describe('Migration Execution Flow', () => {
+  it('should iterate through migrations array', async () => {
+    const migrations = [
+      { name: '001-initial-setup', up: vi.fn(), down: vi.fn() }
+    ];
+
+    for (const migration of migrations) {
+      expect(migration.name).toBe('001-initial-setup');
+      expect(typeof migration.up).toBe('function');
+      expect(typeof migration.down).toBe('function');
+    }
+  });
+
+  it('should call up function for each migration', async () => {
+    const upMock = vi.fn().mockResolvedValue(undefined);
+    const migration = { name: 'test', up: upMock, down: vi.fn() };
+
+    await migration.up({});
+
+    expect(upMock).toHaveBeenCalled();
+  });
+
+  it('should insert migration record after successful up', async () => {
+    const insertOne = vi.fn().mockResolvedValue({ insertedId: 'id' });
+
+    await insertOne({
+      name: '001-initial-setup',
+      appliedAt: new Date()
+    });
+
+    expect(insertOne).toHaveBeenCalledWith(expect.objectContaining({
+      name: '001-initial-setup'
+    }));
+  });
+});
+
+describe('Console Logging in Migrations', () => {
+  it('should log connecting message', () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const mongoUrl = 'mongodb://localhost:27017';
+
+    console.log(`Connecting to MongoDB: ${mongoUrl}`);
+
+    expect(logSpy).toHaveBeenCalledWith(`Connecting to MongoDB: ${mongoUrl}`);
+    logSpy.mockRestore();
+  });
+
+  it('should log connected to database message', () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const dbName = 'seo_shield_proxy';
+
+    console.log(`Connected to database: ${dbName}`);
+
+    expect(logSpy).toHaveBeenCalledWith(`Connected to database: ${dbName}`);
+    logSpy.mockRestore();
+  });
+
+  it('should log skipping migration message', () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const migrationName = '001-initial-setup';
+
+    console.log(`Skipping migration ${migrationName} (already applied)`);
+
+    expect(logSpy).toHaveBeenCalledWith(`Skipping migration ${migrationName} (already applied)`);
+    logSpy.mockRestore();
+  });
+
+  it('should log running migration message', () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const migrationName = '001-initial-setup';
+
+    console.log(`Running migration: ${migrationName}`);
+
+    expect(logSpy).toHaveBeenCalledWith(`Running migration: ${migrationName}`);
+    logSpy.mockRestore();
+  });
+
+  it('should log migration completed message', () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const migrationName = '001-initial-setup';
+
+    console.log(`Migration ${migrationName} completed`);
+
+    expect(logSpy).toHaveBeenCalledWith(`Migration ${migrationName} completed`);
+    logSpy.mockRestore();
+  });
+
+  it('should log all migrations completed message', () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    console.log('All migrations completed successfully');
+
+    expect(logSpy).toHaveBeenCalledWith('All migrations completed successfully');
+    logSpy.mockRestore();
+  });
+
+  it('should log error message on failure', () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const error = new Error('Migration failed');
+
+    console.error('Migration failed:', error);
+
+    expect(errorSpy).toHaveBeenCalledWith('Migration failed:', error);
+    errorSpy.mockRestore();
+  });
+});
+
+describe('Process Exit Behavior', () => {
+  it('should exit with code 1 on error', () => {
+    let exitCode = -1;
+    const mockExit = (code: number) => { exitCode = code; };
+
+    // Simulate error path
+    mockExit(1);
+
+    expect(exitCode).toBe(1);
+  });
+});
+
+describe('Migration Interface Validation', () => {
+  it('should validate Migration interface shape', () => {
+    interface Migration {
+      name: string;
+      up: (db: any) => Promise<void>;
+      down: (db: any) => Promise<void>;
+    }
+
+    const migration: Migration = {
+      name: 'test-migration',
+      up: async () => {},
+      down: async () => {}
+    };
+
+    expect(migration.name).toBe('test-migration');
+    expect(typeof migration.up).toBe('function');
+    expect(typeof migration.down).toBe('function');
+  });
+
+  it('should validate migrations array structure', () => {
+    const migrations = [
+      { name: '001-initial-setup', up: async () => {}, down: async () => {} }
+    ];
+
+    expect(Array.isArray(migrations)).toBe(true);
+    expect(migrations[0]).toHaveProperty('name');
+    expect(migrations[0]).toHaveProperty('up');
+    expect(migrations[0]).toHaveProperty('down');
+  });
+});

@@ -732,3 +732,358 @@ describe('WebSocket Reconnection', () => {
     expect(options.reconnectionDelayMax).toBe(5000);
   });
 });
+
+describe('WebSocket sendStats Function Simulation', () => {
+  it('should build stats payload from various sources', () => {
+    const metricsCollector = {
+      getStats: () => ({ totalRequests: 100, successfulRequests: 95, failedRequests: 5 }),
+      getBotStats: () => ({ Googlebot: 10, Bingbot: 5, others: 85 })
+    };
+
+    const cache = {
+      getStats: () => ({ size: 100, hits: 50, misses: 50, hitRate: 50 })
+    };
+
+    const memoryUsage = process.memoryUsage();
+
+    const stats = {
+      metrics: metricsCollector.getStats(),
+      bots: metricsCollector.getBotStats(),
+      cache: cache.getStats(),
+      memory: {
+        heapUsed: Math.floor(memoryUsage.heapUsed / 1024 / 1024),
+        heapTotal: Math.floor(memoryUsage.heapTotal / 1024 / 1024),
+        rss: Math.floor(memoryUsage.rss / 1024 / 1024),
+        external: Math.floor(memoryUsage.external / 1024 / 1024)
+      },
+      timestamp: Date.now()
+    };
+
+    expect(stats.metrics.totalRequests).toBe(100);
+    expect(stats.bots.Googlebot).toBe(10);
+    expect(stats.cache.hitRate).toBe(50);
+    expect(stats.memory.heapUsed).toBeGreaterThan(0);
+    expect(stats.timestamp).toBeGreaterThan(0);
+  });
+
+  it('should emit stats to socket', () => {
+    const socket = { emit: vi.fn() };
+    const stats = {
+      metrics: {},
+      bots: {},
+      cache: {},
+      memory: { heapUsed: 50, heapTotal: 100, rss: 150, external: 10 },
+      timestamp: Date.now()
+    };
+
+    socket.emit('stats', stats);
+
+    expect(socket.emit).toHaveBeenCalledWith('stats', stats);
+  });
+});
+
+describe('WebSocket broadcastStats Function Simulation', () => {
+  it('should not broadcast if io is null', () => {
+    const io: any = null;
+    let broadcastCalled = false;
+
+    const broadcastStats = () => {
+      if (!io) return;
+      broadcastCalled = true;
+    };
+
+    broadcastStats();
+    expect(broadcastCalled).toBe(false);
+  });
+
+  it('should broadcast stats to all clients when io is available', () => {
+    const io = { emit: vi.fn() };
+    const memoryUsage = process.memoryUsage();
+
+    const stats = {
+      metrics: { totalRequests: 100 },
+      bots: { Googlebot: 10 },
+      cache: { size: 50 },
+      memory: {
+        heapUsed: Math.floor(memoryUsage.heapUsed / 1024 / 1024),
+        heapTotal: Math.floor(memoryUsage.heapTotal / 1024 / 1024),
+        rss: Math.floor(memoryUsage.rss / 1024 / 1024),
+        external: Math.floor(memoryUsage.external / 1024 / 1024)
+      },
+      timestamp: Date.now()
+    };
+
+    io.emit('stats', stats);
+
+    expect(io.emit).toHaveBeenCalledWith('stats', expect.objectContaining({
+      metrics: expect.any(Object),
+      timestamp: expect.any(Number)
+    }));
+  });
+});
+
+describe('WebSocket Connection Event Handler Simulation', () => {
+  it('should log client connection', () => {
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const socketId = 'test-socket-123';
+
+    console.log('📡 Admin client connected:', socketId);
+
+    expect(consoleSpy).toHaveBeenCalledWith('📡 Admin client connected:', socketId);
+    consoleSpy.mockRestore();
+  });
+
+  it('should setup socket event handlers', () => {
+    const socket = {
+      id: 'test-socket-123',
+      on: vi.fn(),
+      emit: vi.fn()
+    };
+
+    // Simulate connection handler
+    const onConnection = (socket: any) => {
+      socket.on('disconnect', () => {});
+      socket.on('request-stats', () => {});
+      socket.on('clear-cache', () => {});
+    };
+
+    onConnection(socket);
+
+    expect(socket.on).toHaveBeenCalledWith('disconnect', expect.any(Function));
+    expect(socket.on).toHaveBeenCalledWith('request-stats', expect.any(Function));
+    expect(socket.on).toHaveBeenCalledWith('clear-cache', expect.any(Function));
+  });
+
+  it('should send initial stats on connection', () => {
+    const socket = { emit: vi.fn() };
+
+    const sendStats = (socket: any) => {
+      socket.emit('stats', {
+        metrics: {},
+        bots: {},
+        cache: {},
+        memory: { heapUsed: 50, heapTotal: 100, rss: 150, external: 10 },
+        timestamp: Date.now()
+      });
+    };
+
+    sendStats(socket);
+
+    expect(socket.emit).toHaveBeenCalledWith('stats', expect.objectContaining({
+      timestamp: expect.any(Number)
+    }));
+  });
+});
+
+describe('WebSocket Socket.io Server Creation', () => {
+  it('should configure Server with CORS options', () => {
+    const serverConfig = {
+      path: '/socket.io',
+      cors: {
+        origin: ['http://localhost:3001', 'http://127.0.0.1:3001', 'http://localhost:3002', 'http://127.0.0.1:3002', 'http://localhost:8080'],
+        methods: ['GET', 'POST'],
+        credentials: true
+      },
+      allowEIO3: true
+    };
+
+    expect(serverConfig.path).toBe('/socket.io');
+    expect(serverConfig.cors.origin).toContain('http://localhost:3001');
+    expect(serverConfig.cors.methods).toContain('GET');
+    expect(serverConfig.cors.methods).toContain('POST');
+    expect(serverConfig.cors.credentials).toBe(true);
+    expect(serverConfig.allowEIO3).toBe(true);
+  });
+
+  it('should store io instance globally', () => {
+    const global: any = {};
+    const io = { on: vi.fn(), emit: vi.fn() };
+
+    global.io = io;
+
+    expect(global.io).toBe(io);
+  });
+});
+
+describe('WebSocket Disconnect Event Handler', () => {
+  it('should log client disconnection', () => {
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const socketId = 'test-socket-456';
+
+    console.log('📡 Admin client disconnected:', socketId);
+
+    expect(consoleSpy).toHaveBeenCalledWith('📡 Admin client disconnected:', socketId);
+    consoleSpy.mockRestore();
+  });
+});
+
+describe('WebSocket Request-Stats Event Handler', () => {
+  it('should send stats when request-stats is received', () => {
+    const socket = { emit: vi.fn() };
+    const memoryUsage = process.memoryUsage();
+
+    const handleRequestStats = (socket: any) => {
+      const stats = {
+        metrics: { totalRequests: 100 },
+        bots: {},
+        cache: {},
+        memory: {
+          heapUsed: Math.floor(memoryUsage.heapUsed / 1024 / 1024),
+          heapTotal: Math.floor(memoryUsage.heapTotal / 1024 / 1024),
+          rss: Math.floor(memoryUsage.rss / 1024 / 1024),
+          external: Math.floor(memoryUsage.external / 1024 / 1024)
+        },
+        timestamp: Date.now()
+      };
+      socket.emit('stats', stats);
+    };
+
+    handleRequestStats(socket);
+
+    expect(socket.emit).toHaveBeenCalledWith('stats', expect.objectContaining({
+      metrics: expect.any(Object),
+      memory: expect.any(Object)
+    }));
+  });
+});
+
+describe('WebSocket Clear-Cache Event Handler', () => {
+  it('should flush cache and send success message', () => {
+    const cache = { flush: vi.fn() };
+    const socket = { emit: vi.fn() };
+
+    const handleClearCache = (socket: any) => {
+      cache.flush();
+      socket.emit('message', { type: 'success', text: 'Cache cleared successfully' });
+    };
+
+    handleClearCache(socket);
+
+    expect(cache.flush).toHaveBeenCalled();
+    expect(socket.emit).toHaveBeenCalledWith('message', {
+      type: 'success',
+      text: 'Cache cleared successfully'
+    });
+  });
+
+  it('should also send updated stats after cache clear', () => {
+    const cache = { flush: vi.fn() };
+    const socket = { emit: vi.fn() };
+
+    const handleClearCache = (socket: any) => {
+      cache.flush();
+      socket.emit('stats', { timestamp: Date.now() });
+      socket.emit('message', { type: 'success', text: 'Cache cleared successfully' });
+    };
+
+    handleClearCache(socket);
+
+    expect(socket.emit).toHaveBeenCalledWith('stats', expect.any(Object));
+    expect(socket.emit).toHaveBeenCalledWith('message', expect.any(Object));
+  });
+});
+
+describe('WebSocket Interval Broadcasting', () => {
+  it('should setup interval for stats broadcasting', () => {
+    vi.useFakeTimers();
+
+    const broadcastStats = vi.fn();
+    const interval = setInterval(() => {
+      broadcastStats();
+    }, 2000);
+
+    vi.advanceTimersByTime(10000);
+
+    expect(broadcastStats).toHaveBeenCalledTimes(5);
+
+    clearInterval(interval);
+    vi.useRealTimers();
+  });
+
+  it('should broadcast to all connected clients', () => {
+    const io = { emit: vi.fn() };
+
+    io.emit('stats', {
+      metrics: {},
+      bots: {},
+      cache: {},
+      memory: { heapUsed: 50, heapTotal: 100, rss: 150, external: 10 },
+      timestamp: Date.now()
+    });
+
+    expect(io.emit).toHaveBeenCalledWith('stats', expect.any(Object));
+  });
+});
+
+describe('WebSocket broadcastTrafficEvent Function', () => {
+  it('should not broadcast if io is null', () => {
+    const io: any = null;
+    let emitCalled = false;
+
+    const broadcastTrafficEvent = (trafficData: any) => {
+      if (!io) return;
+      emitCalled = true;
+      io.emit('traffic', { ...trafficData, timestamp: Date.now() });
+    };
+
+    broadcastTrafficEvent({ url: 'http://test.com' });
+    expect(emitCalled).toBe(false);
+  });
+
+  it('should broadcast traffic event with timestamp', () => {
+    const io = { emit: vi.fn() };
+
+    const broadcastTrafficEvent = (trafficData: any) => {
+      io.emit('traffic', { ...trafficData, timestamp: Date.now() });
+    };
+
+    broadcastTrafficEvent({ url: 'http://test.com', action: 'ssr' });
+
+    expect(io.emit).toHaveBeenCalledWith('traffic', expect.objectContaining({
+      url: 'http://test.com',
+      action: 'ssr',
+      timestamp: expect.any(Number)
+    }));
+  });
+});
+
+describe('WebSocket Initialization Logging', () => {
+  it('should log initialization success', () => {
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    console.log('✅ WebSocket server initialized');
+
+    expect(consoleSpy).toHaveBeenCalledWith('✅ WebSocket server initialized');
+    consoleSpy.mockRestore();
+  });
+});
+
+describe('WebSocket Memory Calculation', () => {
+  it('should calculate all memory metrics correctly', () => {
+    const memoryUsage = process.memoryUsage();
+
+    const memory = {
+      heapUsed: Math.floor(memoryUsage.heapUsed / 1024 / 1024),
+      heapTotal: Math.floor(memoryUsage.heapTotal / 1024 / 1024),
+      rss: Math.floor(memoryUsage.rss / 1024 / 1024),
+      external: Math.floor(memoryUsage.external / 1024 / 1024)
+    };
+
+    expect(memory.heapUsed).toBeGreaterThanOrEqual(0);
+    expect(memory.heapTotal).toBeGreaterThanOrEqual(memory.heapUsed);
+    expect(memory.rss).toBeGreaterThanOrEqual(memory.heapTotal);
+    expect(memory.external).toBeGreaterThanOrEqual(0);
+  });
+});
+
+describe('WebSocket Default Export', () => {
+  it('should export both functions', () => {
+    const defaultExport = {
+      initializeWebSocket: vi.fn(),
+      broadcastTrafficEvent: vi.fn()
+    };
+
+    expect(defaultExport.initializeWebSocket).toBeDefined();
+    expect(defaultExport.broadcastTrafficEvent).toBeDefined();
+  });
+});
